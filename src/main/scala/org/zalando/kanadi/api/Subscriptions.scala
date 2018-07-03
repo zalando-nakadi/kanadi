@@ -618,16 +618,16 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       _        = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
-        if (response.status == StatusCodes.NotFound) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
-          Future.successful(None)
-        } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionCursor]
-            .map(x => Some(x))
-        } else {
-          processNotSuccessful(response)
+        response.status match {
+          case StatusCodes.NotFound | StatusCodes.NoContent =>
+            // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
+            response.entity.dataBytes.runWith(Sink.ignore)
+            Future.successful(None)
+          case s if s.isSuccess() =>
+            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
+              .to[SubscriptionCursor]
+              .map(x => Some(x))
+          case _ => processNotSuccessful(response)
         }
       }
     } yield result
