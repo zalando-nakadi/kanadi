@@ -26,8 +26,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   override def is: SpecStructure = sequential ^ s2"""
     Create Event Type          $createEventType
     Create Subscription events $createSubscription
-    Start streaming            $startStreaming
     Publish events             $publishEvents
+    Start streaming            $startStreaming
     Receive events             $receiveEvents
     Close connection           $closeConnection
     Delete subscription        $deleteSubscription
