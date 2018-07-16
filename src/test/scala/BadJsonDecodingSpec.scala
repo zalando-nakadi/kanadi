@@ -63,10 +63,10 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   s"Consumer Group: $consumerGroup".pp
 
   val subscriptionsClient =
-    Subscriptions(nakadiUri, TokenProvider.oAuth2TokenProvider)
-  val eventsClient = Events(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    Subscriptions(nakadiUri, None)
+  val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
-    EventTypes(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    EventTypes(nakadiUri, None)
 
   private def randomFlowId(): FlowId =
     FlowId(java.util.UUID.randomUUID().toString)
