@@ -45,10 +45,10 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   s"Consumer Group: $consumerGroup".pp
 
   val subscriptionsClient =
-    Subscriptions(nakadiUri, TokenProvider.oAuth2TokenProvider)
-  val eventsClient = Events(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    Subscriptions(nakadiUri, None)
+  val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
-    EventTypes(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    EventTypes(nakadiUri, None)
 
   def createEventType = (name: String) => {
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))

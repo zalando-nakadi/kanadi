@@ -1,0 +1,48 @@
+language: scala
+
+sudo: required
+
+env:
+  - DOCKER_COMPOSE_VERSION=1.21.1
+
+services:
+  - docker
+
+scala:
+  - 2.11.12
+  - 2.12.6
+
+jdk: oraclejdk8
+
+before_cache:
+  # Tricks to avoid unnecessary cache updates
+  - find $HOME/.sbt -name "*.lock" -type f -delete
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
+  - find $HOME/.coursier/cache -name "*.lock" -type f -delete
+
+cache:
+  directories:
+  - $HOME/.sbt/1.0
+  - $HOME/.sbt/boot/scala*
+  - $HOME/.sbt/cache
+  - $HOME/.sbt/launchers
+  - $HOME/.ivy2/cache
+  - $HOME/.coursier
+
+before_install:
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+  - wget https://raw.githubusercontent.com/adyach/nakadi-docker/master/docker-compose.yml
+
+before_script:
+  - sudo service mysql stop
+  - sudo service postgresql stop
+  - docker-compose up -d
+
+script:
+ - sbt -DTOKEN=test ++$TRAVIS_SCALA_VERSION "test"
+
+after_script:
+  - docker-compose down

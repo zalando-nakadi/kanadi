@@ -1,6 +1,6 @@
 name := """kanadi"""
 
-val akkaHttpVersion        = "10.1.0"
+val akkaHttpVersion        = "10.1.3"
 val akkaStreamsJsonVersion = "0.1.0"
 val currentScalaVersion    = "2.11.12"
 val enumeratumCirceVersion = "1.5.12"
@@ -66,14 +66,14 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion,
   "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion,
   "com.typesafe.akka"          %% "akka-stream"         % akkaVersion,
-  "org.mdedetrich"             %% "censored-raw-header" % "0.1.0",
+  "org.mdedetrich"             %% "censored-raw-header" % "0.2.0",
   "org.mdedetrich"             %% "webmodels"           % "0.2.0",
   "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
   "io.circe"                   %% "circe-java8"         % circeVersion,
   "io.circe"                   %% "circe-parser"        % circeVersion,
   "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
   "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
-  "de.heikoseeberger"          %% "akka-http-circe"     % "1.19.0",
+  "de.heikoseeberger"          %% "akka-http-circe"     % "1.21.0",
   "com.iheart"                 %% "ficus"               % "1.4.3",
   "com.typesafe.scala-logging" %% "scala-logging"       % "3.8.0",
   "ch.qos.logback"             % "logback-classic"      % "1.1.7",
