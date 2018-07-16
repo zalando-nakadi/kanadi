@@ -26,8 +26,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   override def is: SpecStructure = sequential ^ s2"""
     Create Event Type          $createEventType
     Create Subscription events $createSubscription
-    Start streaming            $startStreaming
     Publish events             $publishEvents
+    Start streaming            $startStreaming
     Receive events             $receiveEvents
     Close connection           $closeConnection
     Delete subscription        $deleteSubscription
@@ -49,10 +49,10 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   s"Consumer Group: $consumerGroup".pp
 
   val subscriptionsClient =
-    Subscriptions(nakadiUri, TokenProvider.oAuth2TokenProvider)
-  val eventsClient = Events(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    Subscriptions(nakadiUri, None)
+  val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
-    EventTypes(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    EventTypes(nakadiUri, None)
 
   def createEventType = (name: String) => {
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
@@ -93,6 +93,26 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       .await(0, timeout = 5 seconds)
   }
 
+  def publishEvents = (name: String) => {
+    implicit val flowId: FlowId = randomFlowId()
+    flowId.pp(name)
+    val uUIDOne = java.util.UUID.randomUUID()
+    val uUIDTwo = java.util.UUID.randomUUID()
+
+    events = Option(
+      List(
+        SomeEvent("Robert", "Terwilliger", uUIDOne),
+        SomeEvent("Die", "Bart, Die", uUIDTwo)
+      ))
+
+    val future = eventsClient.publish[SomeEvent](
+      eventTypeName,
+      events.get.map(x => Event.Business(x))
+    )
+
+    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+  }
+
   def startStreaming = (name: String) => {
     implicit val flowId: FlowId = randomFlowId()
     flowId.pp(name)
@@ -131,26 +151,6 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
     currentStreamId.future.map(_ => ()) must be_==(())
       .await(0, timeout = 4 minutes)
 
-  }
-
-  def publishEvents = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
-    flowId.pp(name)
-    val uUIDOne = java.util.UUID.randomUUID()
-    val uUIDTwo = java.util.UUID.randomUUID()
-
-    events = Option(
-      List(
-        SomeEvent("Robert", "Terwilliger", uUIDOne),
-        SomeEvent("Die", "Bart, Die", uUIDTwo)
-      ))
-
-    val future = eventsClient.publish[SomeEvent](
-      eventTypeName,
-      events.get.map(x => Event.Business(x))
-    )
-
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
   def receiveEvents = (name: String) => {
