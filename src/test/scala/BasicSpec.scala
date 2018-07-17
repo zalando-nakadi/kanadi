@@ -29,6 +29,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
     Start streaming            $startStreaming
     Publish events             $publishEvents
     Receive events             $receiveEvents
+    Get Subscription stats     $getSubscriptionStats
     Close connection           $closeConnection
     Delete subscription        $deleteSubscription
     Delete event type          $deleteEventType
@@ -155,6 +156,18 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
 
   def receiveEvents = (name: String) => {
     streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
+  }
+
+  def getSubscriptionStats = (name: String) => {
+    implicit val flowId: FlowId = randomFlowId()
+    flowId.pp(name)
+
+    val statsPresent = for {
+      subscriptionId <- currentSubscriptionId.future
+      stats          <- subscriptionsClient.stats(subscriptionId)
+    } yield stats.isDefined
+
+    statsPresent must be_==(true).await(retries = 3, timeout = 10 seconds)
   }
 
   def closeConnection = (name: String) => {
