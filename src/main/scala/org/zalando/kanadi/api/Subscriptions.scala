@@ -179,7 +179,7 @@ object Subscriptions {
 
   }
 
-  case class EventTypeStats(eventType: EventTypeName, partitions: EventTypeStats.Partition)
+  case class EventTypeStats(eventType: EventTypeName, partitions: List[EventTypeStats.Partition])
 
   object EventTypeStats {
     case class Partition(partition: models.Partition,
