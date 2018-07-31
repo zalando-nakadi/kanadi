@@ -15,4 +15,7 @@ project/plugins/project/
 .history
 .cache
 .lib/
+.idea/
+.iml
+.editorconfig
 
