@@ -194,9 +194,9 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     val future = for {
       closed       <- closedFuture
       waitForClose <- waitForCloseFuture
-    } yield (closed, waitForClose)
+    } yield (closed | waitForClose) // either connection has been closed earlier or from our client side
 
-    future must be_==((true, true)).await(0, timeout = 1 minute)
+    future must be_==(true).await(0, timeout = 1 minute)
   }
 
   def deleteSubscription = (name: String) => {
