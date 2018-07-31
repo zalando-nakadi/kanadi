@@ -140,8 +140,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
                        }
                    },
                    ConnectionClosedCallback { connectionClosedData =>
-                     if (connectionClosedData.cancelledByClient)
-                       subscriptionClosed = true
+                      // Connection will be already closed
+                      subscriptionClosed = true
                    }
                  )
       } yield stream
