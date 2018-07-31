@@ -986,9 +986,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
       connectionFlow = {
         val host = baseUri_.authority.host.toString()
+        val port = baseUri_.authority.port
         if (request.uri.scheme.equalsIgnoreCase("https"))
-          http.outgoingConnectionHttps(host, settings = clientConnectionSettings)
-        else http.outgoingConnection(host, settings = clientConnectionSettings)
+          http.outgoingConnectionHttps(host = host, port = port, settings = clientConnectionSettings)
+        else http.outgoingConnection(host = host, port = port, settings = clientConnectionSettings)
       }
 
       response <- Source
