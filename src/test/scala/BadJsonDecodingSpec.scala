@@ -189,7 +189,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed))
+      akka.pattern.after(6 seconds, system.scheduler)(Future.successful(subscriptionClosed))
 
     val future = for {
       closed       <- closedFuture
