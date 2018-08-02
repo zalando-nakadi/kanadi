@@ -63,10 +63,10 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   s"Consumer Group: $consumerGroup".pp
 
   val subscriptionsClient =
-    Subscriptions(nakadiUri, TokenProvider.oAuth2TokenProvider)
-  val eventsClient = Events(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    Subscriptions(nakadiUri, None)
+  val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
-    EventTypes(nakadiUri, TokenProvider.oAuth2TokenProvider)
+    EventTypes(nakadiUri, None)
 
   private def randomFlowId(): FlowId =
     FlowId(java.util.UUID.randomUUID().toString)
@@ -140,8 +140,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
                        }
                    },
                    ConnectionClosedCallback { connectionClosedData =>
-                     if (connectionClosedData.cancelledByClient)
-                       subscriptionClosed = true
+                      // Connection will be already closed
+                      subscriptionClosed = true
                    }
                  )
       } yield stream
@@ -189,14 +189,14 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed))
+      akka.pattern.after(6 seconds, system.scheduler)(Future.successful(subscriptionClosed))
 
     val future = for {
       closed       <- closedFuture
       waitForClose <- waitForCloseFuture
-    } yield (closed, waitForClose)
+    } yield (closed | waitForClose) // either connection has been closed earlier or from our client side
 
-    future must be_==((true, true)).await(0, timeout = 1 minute)
+    future must be_==(true).await(0, timeout = 1 minute)
   }
 
   def deleteSubscription = (name: String) => {
