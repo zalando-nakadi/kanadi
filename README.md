@@ -39,16 +39,10 @@ a year, including handling events from Zalando's main website search.
 
 ### Installation
 
-Kanadi is currently deployed to Zalando's Maven Repo
-
-```sbt
-resolvers in ThisBuild ++= Seq(
-  "zalando-nexus-releases" at "https://maven.zalando.net/content/repositories/releases/",
-  "zalando-nexus-snapshots" at "https://maven.zalando.net/content/repositories/snapshots/"
-)
+Kanadi is currently deployed to OSS Sonatype
 
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.2.0-MILESTONE-M11"
+    "org.zalando" %% "kanadi" % "0.2.0"
 )
 ```
 

@@ -9,7 +9,7 @@ val akkaVersion            = "2.5.12"
 
 scalafmtVersion in ThisBuild := "1.1.0"
 
-version := "0.2.0-MILESTONE-M11"
+version := "0.2.0"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
@@ -82,14 +82,31 @@ libraryDependencies ++= Seq(
 
 scalacOptions in Test ++= Seq("-Yrangepos")
 
+homepage := Some(url("https://github.com/zalando-incubator/kanadi"))
+
+scmInfo := Some(
+  ScmInfo(url("https://github.com/zalando-incubator/kanadi"), "git@github.com:zalando-incubator/kanadi.git"))
+
+developers := List(
+  Developer("mdedetrich", "Matthew de Detrich", "mdedetrich@gmail.com", url("https://github.com/mdedetrich")),
+  Developer("xjrk58", "Jiri Syrovy", "jiri.syrovy@zalando.de", url("https://github.com/xjrk58")),
+  Developer("itachi3", "Balaji Sonachalam", "balajispsg@gmail.com", url("https://github.com/itachi3"))
+)
+
+licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
+
 publishMavenStyle := true
 
-publishTo in ThisBuild := {
-  val nexus = "https://maven.zalando.net/"
+publishTo := {
+  val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots/")
+    Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-    Some("releases" at nexus + "content/repositories/releases/")
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
+
+publishArtifact in Test := false
+
+pomIncludeRepository := (_ => false)
 
 resolvers += Resolver.jcenterRepo
