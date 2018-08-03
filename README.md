@@ -41,6 +41,7 @@ a year, including handling events from Zalando's main website search.
 
 Kanadi is currently deployed to OSS Sonatype
 
+```sbt
 libraryDependencies ++= Seq(
     "org.zalando" %% "kanadi" % "0.2.0"
 )
