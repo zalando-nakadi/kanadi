@@ -18,7 +18,7 @@ import org.zalando.kanadi.api.Subscriptions.{
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.Success
 
