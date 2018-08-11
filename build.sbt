@@ -7,10 +7,6 @@ val enumeratumCirceVersion = "1.5.12"
 val circeVersion           = "0.9.3"
 val akkaVersion            = "2.5.12"
 
-scalafmtVersion in ThisBuild := "1.1.0"
-
-version := "0.2.0"
-
 scalaVersion in ThisBuild := currentScalaVersion
 
 crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.6")
