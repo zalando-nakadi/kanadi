@@ -11,6 +11,8 @@ import org.specs2.specification.{AfterAll, BeforeAll}
 import org.zalando.kanadi.Config
 import org.zalando.kanadi.api.{Category, EventType, EventTypes, Events, Subscription, Subscriptions}
 import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
+
+import scala.collection.parallel.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -30,7 +32,7 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
   val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
-  var subscriptionIds: List[SubscriptionId] = List.empty
+  val subscriptionIds: mutable.ParSet[SubscriptionId] = mutable.ParSet.empty
 
   eventTypeName.pp
   s"Consumer Group: $consumerGroup".pp
@@ -63,7 +65,7 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
         Subscription(None, s"$OwningApplication-${UUID.randomUUID().toString}", Some(List(eventTypeName))))
     } yield {
       subscription.foreach { s =>
-        subscriptionIds = subscriptionIds :+ s.id.get
+        subscriptionIds += s.id.get
       }
       subscription
     })
