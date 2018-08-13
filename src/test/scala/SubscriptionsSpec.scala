@@ -48,7 +48,7 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
   override def afterAll = {
     Await.result(
       for {
-        res1 <- Future.sequence(subscriptionIds.map(s => subscriptionsClient.delete(s)))
+        res1 <- Future.sequence(subscriptionIds.toList.map(s => subscriptionsClient.delete(s)))
         res2 <- eventsTypesClient.delete(eventTypeName)
       } yield (res1, res2),
       10 seconds
