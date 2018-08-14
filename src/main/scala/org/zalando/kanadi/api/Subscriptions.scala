@@ -826,9 +826,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
       connectionFlow = {
         val host = baseUri_.authority.host.toString()
+        val port = baseUri_.effectivePort
         if (request.uri.scheme.equalsIgnoreCase("https"))
-          http.outgoingConnectionHttps(host)
-        else http.outgoingConnection(host)
+          http.outgoingConnectionHttps(host, port)
+        else http.outgoingConnection(host, port)
       }
       response <- Source
                    .single(request)
@@ -986,7 +987,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
       connectionFlow = {
         val host = baseUri_.authority.host.toString()
-        val port = baseUri_.authority.port
+        val port = baseUri_.effectivePort
         if (request.uri.scheme.equalsIgnoreCase("https"))
           http.outgoingConnectionHttps(host = host, port = port, settings = clientConnectionSettings)
         else http.outgoingConnection(host = host, port = port, settings = clientConnectionSettings)
@@ -1073,9 +1074,9 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                             ()
                           },
                         streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig(),
-                        modifySourceFunction: Option[(Source[SubscriptionEvent[T], UniqueKillSwitch]) => (
-                          Source[SubscriptionEvent[T],
-                                 UniqueKillSwitch])] = None)(
+                        modifySourceFunction: Option[
+                          Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T],
+                                                                                   UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
@@ -1252,9 +1253,9 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                                    ()
                                  },
                                streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig(),
-                               modifySourceFunction: Option[(Source[SubscriptionEvent[T], UniqueKillSwitch]) => (
-                                 Source[SubscriptionEvent[T],
-                                        UniqueKillSwitch])] = None)(
+                               modifySourceFunction: Option[
+                                 Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T],
+                                                                                          UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
