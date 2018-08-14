@@ -1,4 +1,5 @@
 import java.util.UUID
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -10,11 +11,7 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
 import org.zalando.kanadi.Config
-import org.zalando.kanadi.api.Subscriptions.{
-  ConnectionClosedCallback,
-  EventCallback,
-  defaultEventStreamSupervisionDecider
-}
+import org.zalando.kanadi.api.Subscriptions.{ConnectionClosedCallback, EventCallback, defaultEventStreamSupervisionDecider}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
@@ -64,8 +61,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
   val currentStreamId: Promise[StreamId]             = Promise()
   var events: Option[List[SomeEvent]]                = None
-  var eventCounter                                   = 0
-  var subscriptionClosed: Boolean                    = false
+  val eventCounter                                   = new AtomicInteger(0)
+  val subscriptionClosed: AtomicBoolean              = new AtomicBoolean(false)
   val streamComplete: Promise[Unit]                  = Promise()
 
   private def randomFlowId(): FlowId =
@@ -128,16 +125,16 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
                        .foreach {
                          case e: Event.Business[SomeEvent] =>
                            if (events.get.contains(e.data)) {
-                             eventCounter += 1
+                             eventCounter.addAndGet(1)
                            }
-                           if (eventCounter == 2)
+                           if (eventCounter.get() == 2)
                              streamComplete.complete(Success(()))
                          case _ =>
                        }
                    },
                    ConnectionClosedCallback { connectionClosedData =>
                      if (connectionClosedData.cancelledByClient)
-                       subscriptionClosed = true
+                       subscriptionClosed.set(true)
                    }
                  )
       } yield stream
@@ -179,7 +176,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed))
+      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
 
     val future = for {
       closed       <- closedFuture
