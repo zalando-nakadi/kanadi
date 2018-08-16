@@ -2,7 +2,7 @@
 [![codecov](https://codecov.io/gh/zalando-incubator/kanadi/branch/master/graph/badge.svg)](https://codecov.io/gh/zalando-incubator/kanadi)
 [![Maven Central Version](https://img.shields.io/maven-central/v/org.zalando/kanadi_2.12.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.zalando%22%20AND%20a%3A%22kanadi_2.12%22)
 
-Kanadi is [Nakadi](https://github.com/zalando/nakadi) client for Scala
+Kanadi is [Nakadi](https://github.com/zalando/nakadi) client for Scala.
 
 ### Goals
 
@@ -26,10 +26,10 @@ means we need to consider the lifecycle and dependencies of certain task types (
 types have had a good history when it comes to binary compatibility or lifecycle longevity). Although `Future` has its
 drawbacks, its ultra stable and portable across the Scala ecosystem.
 * Using another streaming library "X". Although there are other very good implementations of streaming libraries (such
-as [Monix](https://monix.io/), [akka-stream](https://doc.akka.io/docs/akka/2.5/stream/index.html) is still the best when
-it comes to binary compatibility). It also comes with a lot of support for monitoring. Note that interopting between
-streams is possible with any other stream that follows the reactive protocol.
-* Scala 2.10 support since akka-streams/akka-http does not support Scala 2.10
+as [Monix](https://monix.io/)), [akka-stream](https://doc.akka.io/docs/akka/2.5/stream/index.html) is still the best when
+it comes to binary compatibility. It also comes with a lot of support for monitoring. Note that interopting between
+streams is possible with any other stream that follows the [Reactive Streams](http://www.reactive-streams.org/) protocol.
+* Scala 2.10.x support since akka-streams/akka-http does not support Scala 2.10
 
 ### Current status
 
@@ -58,7 +58,7 @@ Kanadi is currently built against Scala 2.11.x and 2.12.x
 Firstly in order to consume an event, we need to figure out what type of event we are dealing with. Nakadi supports
 3 types of events, business/data and undefined. The reason why its important to figure out what these events are is
 because the Circe `Encoder`'s and `Decoder`'s for these events will differ depending on what the event type is. The
-easiest way to determine what type of event you are dealing with is to look at the Nakadi JSON for the event
+easiest way to determine what type of event you are dealing with is to look at the Nakadi JSON for the event.
 
 ##### Data Change Event
 The event is a data change event if it contains `data_op` field in the root JSON object, i.e.
@@ -69,7 +69,7 @@ The event is a data change event if it contains `data_op` field in the root JSON
         "occurred_at": "1984-03-03T12:30:12.000Z",
         "eid": "fee9be69-4a4c-47e2-a193-fd1003f6742b",
         "partition": "0",
-        "event_type": "wishlist-change-event",
+        "event_type": "address-change-event",
         "received_at": "2017-10-10T09:07:49.113Z",
         "flow_id": "QHTGz3vrJhkHicPutHo88u80",
         "version": "0.1.0"
@@ -79,15 +79,16 @@ The event is a data change event if it contains `data_op` field in the root JSON
         "occurred_at": "1984-03-03T12:30:12.000Z",
         "country": "DE",
         "event_type": "ADDED",
-        "customer_number": "10101065",
+        "customer_id": "3248947",
         "locale": "de-DE",
-        "client_id": "5204fee6-d00c-4d62-b9e8-a7c1da172872",
-        "article": {
-            "simple_sku": "LE422H00J-K1100XL000",
-            "config_sku": "LE422H00J-K11"
+        "client_id": "6d359e0f-8b7a-40c0-aeb5-c46d164a8074",
+        "address": {
+            "street_number": 7,
+            "street_name": "Wurststrasse",
+            "post_code": 106398
         }
     },
-    "data_type": "wishlist.events"
+    "data_type": "address-change.events"
 }
 ```
 
@@ -96,7 +97,7 @@ Since we have `"data_op": "C"`, this is going to be a datachange event
 In this case since the data for the body will **always** be contained within the JSON `data` field, Kanadi will
 automatically handle reading the JSON data from within the `data` object, so your `Encoder`/`Decoder` doesn't need
 to take into account any nesting. You also do not need to take into account parsing the `metadata`, `data_op` or 
-`data_type`, this will be handled for you
+`data_type`, this will be handled for you.
  
 A sample `Encoder`/`Decoder` for the above event might look like this.
 
@@ -104,39 +105,40 @@ A sample `Encoder`/`Decoder` for the above event might look like this.
 import io.circe._
 import io.circe.syntax._
 
-case class Article(simpleSku: String, configSku: String)
+final case class Address(streetNumber: Int, streetName: String, postCode: Int)
 
-implicit val articleEncoder: Encoder[Article] = Encoder.forProduct2(
-  "simple_sku",
-  "config_sku"
-)(x => Article.unapply(x).get)
+implicit val addressEncoder: Encoder[Address] = Encoder.forProduct3(
+  "street_number",
+  "street_name",
+  "post_code"
+)(x => Address.unapply(x).get)
 
-case class WishlistEvent(
+final case class AddressChangeEvent(
   country: String,
   eventType: String,
-  customerNumber: String,
+  customerId: String,
   locale: String,
   clientId: String,
-  article: Article
+  address: Address
 )
 
-implicit val wishlistEventEncoder: Encoder[WishlistEvent] = Encoder.forProduct6(
+implicit val addressChangeEventEncoder: Encoder[AddressChangeEvent] = Encoder.forProduct6(
   "country",
   "event_type",
-  "customer_number",
+  "customer_id",
   "locale",
   "client_id",
-  "article"
-)(x => WishlistEvent.unapply(x).get)
+  "address"
+)(x => AddressChangeEvent.unapply(x).get)
 
-implicit val wishlistEventDecoder: Decoder[WishlistEvent] = Decoder.forProduct6(
+implicit val addressChangeEventDecoder: Decoder[AddressChangeEvent] = Decoder.forProduct6(
   "country",
   "event_type",
-  "customer_number",
+  "customer_id",
   "locale",
   "client_id",
-  "article"
-)(WishlistEvent.apply)
+  "address"
+)(AddressChangeEvent.apply)
 ```
 
 ##### Business Event
@@ -152,19 +154,18 @@ This means that both
     "metadata": {
         "occurred_at": "2017-10-05T21:54:08Z",
         "eid": "2e828815-ff5c-4a04-8ec1-35b24630ed3e",
-        "event_type": "DE.ZALANDO.LOGISTICS.ALE.BAGPACK.PACK_ITEM_SCANNED.ver_1",
+        "event_type": "song-query",
         "partition": "0",
         "received_at": "2017-10-05T21:54:08.974Z",
         "flow_id": "tlKVTSIVfgBpZceuOfe5FS1e",
         "version": "1.0.0"
     },
-    "topic": "items",
     "body": {
-        "item_ql": "0000QE0Q7UG",
-        "item_id": "1525573413245033179",
-        "commission_uri": "/sites/moenchengladbach/commissions/1041020047412370",
-        "workbench_uri": "/sites/moenchengladbach/locations/400-087-019-O-19",
-        "sku": "ON321I0XO-C12000S000"
+        "song": "You Spin Me Round (Like a Record)",
+        "album": "Youthquake",
+        "artist": "Dead Or Alive",
+        "year": 1985,
+        "duration": "3:20"
     }
 }
 ```
@@ -177,19 +178,17 @@ and
     "metadata": {
         "occurred_at": "2017-10-05T21:54:08Z",
         "eid": "2e828815-ff5c-4a04-8ec1-35b24630ed3e",
-        "event_type": "DE.ZALANDO.LOGISTICS.ALE.BAGPACK.PACK_ITEM_SCANNED.ver_1",
+        "event_type": "song-query",
         "partition": "0",
         "received_at": "2017-10-05T21:54:08.974Z",
         "flow_id": "tlKVTSIVfgBpZceuOfe5FS1e",
         "version": "1.0.0"
     },
-    "topic": "items",
-    "item_ql": "0000QE0Q7UG",
-    "item_id": "1525573413245033179",
-    "commission_uri": "/sites/moenchengladbach/commissions/1041020047412370",
-    "workbench_uri": "/sites/moenchengladbach/locations/400-087-019-O-19",
-    "sku": "ON321I0XO-C12000S000"
-
+    "song": "You Spin Me Round (Like a Record)",
+    "album": "Youthquake",
+    "artist": "Dead Or Alive",
+    "year": 1985,
+    "duration": "3:20"
 }
 ```
 
@@ -200,52 +199,49 @@ encode the first version (where the data is contained within the JSON `body` fie
 import io.circe._
 import io.circe.syntax._
 
-case class ItemScannedEvent(
-  topic: String,
-  itemQl: String,
-  itemId: String,
-  commissionUri: String,
-  workbenchUri: String,
-  sku: String
+final case class SongQueryEvent(
+  song: String,
+  album: String,
+  artist: String,
+  year: Int,
+  duration: String
 )
 
-implicit val itemScannedEventEncoder: Encoder[ItemScannedEvent] = Encoder.instance[ItemScannedEvent] {itemScannedEvent =>
+implicit val songQueryEventEncoder: Encoder[SongQueryEvent] = Encoder.instance[SongQueryEvent] { songQueryEvent =>
 
-  val bodyEncoder: Encoder[ItemScannedEvent] = Encoder.forProduct6(
-    "topic",
-    "item_ql",
-    "item_id",
-    "commission_uri",
-    "workbench_uri",
-    "sku"
-  )(x => ItemScannedEvent.unapply(x).get)
+  val bodyEncoder: Encoder[SongQueryEvent] = Encoder.forProduct5(
+    "song",
+    "album",
+    "artist",
+    "year",
+    "duration"
+  )(x => SongQueryEvent.unapply(x).get)
 
   Json.obj(
-    "body" -> bodyEncoder(itemScannedEvent)
+    "body" -> bodyEncoder(songQueryEvent)
   )
 }
 
-implicit val itemScannedEventDecoder: Decoder[ItemScannedEvent] = Decoder.instance[ItemScannedEvent](
-  _.downField("body").as[ItemScannedEvent](
-    Decoder.forProduct6(
-      "topic",
-       "item_ql",
-       "item_id",
-       "commission_uri",
-       "workbench_uri",
-       "sku"
-    )(ItemScannedEvent.apply)
+implicit val songQueryEventDecoder: Decoder[SongQueryEvent] = Decoder.instance[SongQueryEvent](
+  _.downField("body").as[SongQueryEvent](
+    Decoder.forProduct5(
+      "song",
+      "album",
+      "artist",
+      "year",
+      "duration"
+    )(SongQueryEvent.apply)
   )
 )
 
 ```
 
 This way you can keep your `case class` which contains the data free of any nesting that may occur, we take care of the
-`body` nesting in the `Encoder`/`Decoder` which keeps our `case class` `ItemScannedEvent` clean.
+`body` nesting in the `Encoder`/`Decoder` which keeps our `case class` `SongQueryEvent` clean.
 
 ##### Undefined Event
 
-An undefined event is any event which doesn't fullfill the above event/s which means it has no restrictions/validation
+An undefined event is any event which doesn't fulfill the above event/s which means it has no restrictions/validation
 on the JSON object whatsoever. This means that any kind of JSON has to be explicitly handled in your `Encoder/Decoder`
 
 Now that we know how to write `Encoder`'s and `Decoder`'s for our event, lets write one for our sample event (in this case
@@ -256,7 +252,7 @@ lets assume its a business event with the event data contained in the root of th
 So first lets write a case class representing our data
 
 ```scala
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 ```
 
 The equivalent JSON of this for some business event would be
@@ -286,7 +282,7 @@ documentation [here](https://circe.github.io/circe/))
 import io.circe._
 import io.circe.syntax._
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -320,7 +316,7 @@ import org.zalando.kanadi.models.EventTypeName
 import org.zalando.kanadi.Config
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -352,7 +348,7 @@ object Main extends App {
 
 The `Subscriptions.createIfDoesntExist` is a helper method which will create a subscription if it doesn't exist,
 however if it does then it will just return the subscription. Note that in Nakadi, `Subscription`'s are uniquely
-defined by `owningApplication`, `eventTypes` and `consumerGroup` .
+defined by a combination of `owningApplication`, `eventTypes` and `consumerGroup` .
 
 Next we will define a callback, this will get executed whenever we consume an event
 
@@ -371,7 +367,7 @@ import org.zalando.kanadi.models.EventTypeName
 import org.zalando.kanadi.Config
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -426,7 +422,7 @@ from terminating the stream. Note that it is recommended that the callback itsel
 Now we will do the simply version of subscribing to the event, this will handle reconnects in case of
 server disconnects or no empty slots/cursor reset and is the typical use case that most clients will want to use. The
 delays can be configured using `KanadiHttpConfig.noEmptySlotsCursorResetRetryDelay` and 
-`KanadiHttpConfig.serverDisconnectRetryDelay`, see `application.conf` for more info.
+`KanadiHttpConfig.serverDisconnectRetryDelay`, see `reference.conf` for more info.
 
 ```scala
 import io.circe._
@@ -444,7 +440,7 @@ import org.zalando.kanadi.models.SubscriptionId
 import org.zalando.kanadi.Config
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -522,7 +518,7 @@ import org.zalando.kanadi.Config
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -574,7 +570,7 @@ object Main extends App {
 The above will provide throttling for each batch of events. Note that a better way to handle this case of throttling
 directly may be to use the source stream directly (detailed [below](#using-the-source-stream-directly)). This is because
 akka-streams are fully 
-[backpressured](https://doc.akka.io/docs/akka/2.5.3/scala/stream/stream-flows-and-basics.html#back-pressure-explained) 
+[backpressured](https://doc.akka.io/docs/akka/2.5.3/scala/stream/stream-flows-and-basics.html#back-pressure-explained).
 
 #### Using the source stream directly
 
@@ -586,10 +582,14 @@ NOTE: When you use this method directly, you also need to register the killswitc
 method to kill a stream). Also `Subscriptions.eventsStreamedSourceManaged` method exists which will handle the
 reconnect for the `Subscriptions.Errors.NoEmptySlotsOrCursorReset(_)` however it will **NOT** handle server disconnects,
 this needs to be done manually by calling `Subscriptions.eventsStreamedSourceManaged` since the stream is not
-materialized yet (all you have is a reference to an uninitialized stream),
-read
+materialized yet (all you have is a reference to an uninitialized stream), read
 [here](https://doc.akka.io/docs/akka/2.5.4/scala/general/stream/stream-design.html#resulting-implementation-constraints)
 for more info.
+
+You also have to be very careful of how you handle errors particularly in the context of committing cursors. Since you
+are working with the source directly you need to make sure that you commit cursors even in the case of stream errors.
+Cursors will still be committed when [failing to parse json](#failure-on-parsing-event-json) but its still your
+responsibility to commit the cursor for both happy case and error case handling.
 
 #### Failure on parsing event JSON
 
@@ -602,14 +602,14 @@ will by default terminate the stream (this is also a somewhat common error). Thi
 parsing the entire JSON payload, Kanadi will combine the data to form a
 `org.zalando.kanadi.api.Subscriptions.SubscriptionEvent`, however if it fails decoding the JSON then you will get a 
 `org.zalando.kanadi.api.Subscriptions.EventJsonParsingException` which will contain the JSON parsing exception as well
-as the basic cursor/event information (so you are still able to commit the cursor token)
+as the basic cursor/event information (so you are still able to commit the cursor token).
 
 So that the stream doesn't get in an endless loop when dealing with decoding errors, we use a
 `akka.stream.Supervision.Decider`. The provided default `Supervision.Decider` will log details about the JSON parsing
 error as well as committing the cursor. It is provided as an `implicit val` that is located 
-in `org.zalando.kanadi.api.Subscriptions.defaultEventStreamSupervisionDecider` 
+in `org.zalando.kanadi.api.Subscriptions.defaultEventStreamSupervisionDecider`.
 
-You can also provide an alternate supervision decider (make sure that you don't import the default one)
+You can also provide an alternate supervision decider (make sure that you don't import the default one).
 
 ```scala
 import akka.actor.ActorSystem
@@ -636,7 +636,7 @@ object Main extends App with Config {
   import akka.stream.Supervision
   
   
-  implicit val mySupervisionDecider =
+  implicit val mySupervisionDecider: Subscriptions.EventStreamSupervisionDecider =
     Subscriptions.EventStreamSupervisionDecider {
       eventStreamContext: EventStreamContext =>
         {
@@ -678,7 +678,7 @@ import org.zalando.kanadi.api.Subscription
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.api.Subscriptions.EventCallback
 
-case class SomeEvent(firstName: String, lastName: String)
+final case class SomeEvent(firstName: String, lastName: String)
 
 object SomeEvent {
   implicit val someEventEncoder: Encoder[SomeEvent] = Encoder.forProduct2(
@@ -705,7 +705,7 @@ object Main extends App with Config {
   import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
   import akka.stream.Supervision
   
-  implicit val mySupervisionDecider =
+  implicit val mySupervisionDecider: Subscriptions.EventStreamSupervisionDecider =
     Subscriptions.EventStreamSupervisionDecider {
       eventStreamContext: EventStreamContext =>
         {
@@ -748,7 +748,7 @@ object Main extends App with Config {
 
 Another way of handling this case is to simply decode the event as a `JsonObject` rather than using a custom case
 class with a decoder (i.e. `subscriptionsClient.eventsStreamedManaged[JsonObject]`). This wont fail (since any
-event data from Nakadi is going to be a valid JSON object)
+event data from Nakadi is going to be a valid JSON object).
 
 #### FlowId/Oauth2Token
 
@@ -763,7 +763,7 @@ implicit val flowId = FlowId(UUID.randomUUID.toString)
 
 If you don't specify a `FlowId`, Kanadi will automatically generate one from you and put it in the header for requests
 (although the only way to get back this automatically generated `FlowId` is to turn on `DEBUG` level debugging for
-requests)
+requests).
 
 For OAuth2 implicit flow authentication, you need to provide a function that defines how you retrieve the token, i.e.
 
@@ -785,33 +785,6 @@ val subscriptionsClient = Subscriptions(Config.nakadiUri, oAuth2TokenProvider)
 Note that Kanadi will automatically censor the tokenId (this is done by overriding the `.toString` method for the
 `RawHeader`). If you want to turn off this functionality then you need to set `kanadi.http-config.censor-oAuth2-token`
 to `false`.
-
-If you are using [scala-typesafe-config-tokens](https://github.com/zalando-stups/scala-typesafe-config-tokens) you
-would do something like the following
-
-```scala
-import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
-import org.zalando.kanadi.api.Subscriptions
-import org.zalando.kanadi.models._
-import org.zalando.kanadi.Config
-import org.zalando.stups.tokens.AccessTokenFactory
-import scala.concurrent.{ExecutionContext, Future}
-
-class AccessTokensInstance(implicit ec: ExecutionContext) 
-  extends AccessTokenFactory()
-
-object Main extends App {
-  val accessTokensInstance = new AccessTokensInstance()
-  
-  val oAuth2TokenProvider = Option(
-    OAuth2TokenProvider(() => Future.successful(
-      OAuth2Token(accessTokensInstance.accessTokens.get("nakadi"))
-    ))
-  )
-  
-  val subscriptionsClient = Subscriptions(Config.nakadiUri, oAuth2TokenProvider)
-}
-```
 
 #### Logging
 
