@@ -1,6 +1,7 @@
 ## Kanadi
 [![codecov](https://codecov.io/gh/zalando-incubator/kanadi/branch/master/graph/badge.svg)](https://codecov.io/gh/zalando-incubator/kanadi)
 [![Maven Central Version](https://img.shields.io/maven-central/v/org.zalando/kanadi_2.12.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.zalando%22%20AND%20a%3A%22kanadi_2.12%22)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/zalando-kanadi/Lobby)
 
 Kanadi is [Nakadi](https://github.com/zalando/nakadi) client for Scala.
 
