@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink}
+import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
@@ -29,6 +30,8 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
     Delete subscription        $deleteSubscription
     Delete event type          $deleteEventType
     """
+
+  val config = ConfigFactory.load()
 
   implicit val system       = ActorSystem()
   implicit val http         = Http()

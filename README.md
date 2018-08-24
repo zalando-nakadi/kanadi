@@ -311,6 +311,7 @@ import io.circe.syntax._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.zalando.kanadi.api.Subscription
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.models.EventTypeName
@@ -331,12 +332,13 @@ object SomeEvent {
   )(SomeEvent.apply)
 }
 
-object Main extends App {
+object Main extends App with Config {
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
   
   def createOrGetSubscription = subscriptionsClient.createIfDoesntExist(
     Subscription(
@@ -360,6 +362,7 @@ import io.circe.syntax._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.zalando.kanadi.api.Subscription
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.api.Subscriptions._
@@ -382,12 +385,13 @@ object SomeEvent {
   )(SomeEvent.apply)
 }
 
-object Main extends App {
+object Main extends App with Config {
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
 
   def createOrGetSubscription = subscriptionsClient.createIfDoesntExist(
     Subscription(
@@ -432,6 +436,7 @@ import io.circe.syntax._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.zalando.kanadi.api.Subscription
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.api.Subscriptions._
@@ -455,12 +460,13 @@ object SomeEvent {
   )(SomeEvent.apply)
 }
 
-object Main extends App {
+object Main extends App with Config {
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
 
   def createOrGetSubscription = subscriptionsClient.createIfDoesntExist(
     Subscription(
@@ -509,6 +515,7 @@ import io.circe.syntax._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.{ActorMaterializer, ThrottleMode}
+import com.typesafe.config.ConfigFactory
 import org.zalando.kanadi.api.Subscription
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.api.Subscriptions._
@@ -533,12 +540,13 @@ object SomeEvent {
   )(SomeEvent.apply)
 }
 
-object Main extends App {
+object Main extends App with Config {
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
 
   def createOrGetSubscription = subscriptionsClient.createIfDoesntExist(
     Subscription(
@@ -616,6 +624,7 @@ You can also provide an alternate supervision decider (make sure that you don't 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.zalando.kanadi.models.{SubscriptionId, StreamId}
 import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
@@ -624,12 +633,12 @@ import akka.stream.Supervision
 import org.zalando.kanadi.Config
 
 object Main extends App with Config {
-
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
 
   import org.mdedetrich.webmodels.FlowId
   import org.zalando.kanadi.models.{SubscriptionId, StreamId}
@@ -668,6 +677,7 @@ import io.circe.syntax._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.zalando.kanadi.models.{SubscriptionId, StreamId}
 import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
@@ -694,12 +704,12 @@ object SomeEvent {
 }
 
 object Main extends App with Config {
-
+  val config = ConfigFactory.load()
   implicit val system = ActorSystem()
   implicit val http = Http()
   implicit val materializer = ActorMaterializer()
   
-  val subscriptionsClient = Subscriptions(Config.nakadiUri)
+  val subscriptionsClient = Subscriptions(nakadiUri)
 
   import org.mdedetrich.webmodels.FlowId
   import org.zalando.kanadi.models.{SubscriptionId, StreamId}
@@ -769,18 +779,23 @@ requests).
 For OAuth2 implicit flow authentication, you need to provide a function that defines how you retrieve the token, i.e.
 
 ```scala
+import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.models._
 import org.zalando.kanadi.Config
 import scala.concurrent.Future  
 
-val oAuth2TokenProvider = Option(
-  OAuth2TokenProvider(
-    () => Future.successful(OAuth2Token(sys.props("TOKEN"))))
-)
-
-val subscriptionsClient = Subscriptions(Config.nakadiUri, oAuth2TokenProvider)
+object Main extends App with Config {
+  val config = ConfigFactory.load()
+  
+  val oAuth2TokenProvider = Option(
+    OAuth2TokenProvider(
+      () => Future.successful(OAuth2Token(sys.props("TOKEN"))))
+  )
+    
+  val subscriptionsClient = Subscriptions(nakadiUri, oAuth2TokenProvider)
+}
 ```
 
 Note that Kanadi will automatically censor the tokenId (this is done by overriding the `.toString` method for the

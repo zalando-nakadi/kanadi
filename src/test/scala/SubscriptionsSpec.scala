@@ -3,6 +3,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
@@ -21,9 +22,12 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
       Create enough subscriptions to ensure that pagination is used $createEnoughSubscriptionsToUsePagination
     """
 
+  val config = ConfigFactory.load()
+
   implicit val system       = ActorSystem()
   implicit val http         = Http()
   implicit val materializer = ActorMaterializer()
+
   val eventTypeName         = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
   val OwningApplication     = "KANADI"
   val consumerGroup: String = UUID.randomUUID().toString
