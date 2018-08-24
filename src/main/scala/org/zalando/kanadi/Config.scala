@@ -2,25 +2,15 @@ package org.zalando.kanadi
 
 import java.net.URI
 
-import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 import org.zalando.kanadi.models.HttpConfig
-
-import scala.concurrent.duration.FiniteDuration
+import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
 
 trait Config {
-  private val conf = ConfigFactory.load
+  def config: com.typesafe.config.Config
 
-  implicit val nakadiUri = new URI(conf.as[String]("kanadi.nakadi.uri"))
+  implicit lazy val nakadiUri: URI = new URI(config.as[String]("kanadi.nakadi.uri"))
 
-  implicit val kanadiHttpConfig = HttpConfig(
-    conf.as[Boolean]("kanadi.http-config.censor-oAuth2-token"),
-    conf.as[Int]("kanadi.http-config.single-string-chunk-length"),
-    conf.as[Int]("kanadi.http-config.event-list-chunk-length"),
-    conf.as[FiniteDuration]("kanadi.http-config.no-empty-slots-cursor-reset-retry-delay"),
-    conf.as[FiniteDuration]("kanadi.http-config.server-disconnect-retry-delay")
-  )
-
+  implicit lazy val kanadiHttpConfig: HttpConfig = config.as[HttpConfig]("kanadi.http-config")
 }
-
-object Config extends Config

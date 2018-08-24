@@ -3,6 +3,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.{ActorMaterializer, Supervision}
+import com.typesafe.config.ConfigFactory
 import io.circe.{Decoder, Encoder}
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
@@ -47,6 +48,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     Delete subscription        $deleteSubscription
     Delete event type          $deleteEventType
     """
+
+  val config = ConfigFactory.load()
 
   implicit val system       = ActorSystem()
   implicit val http         = Http()

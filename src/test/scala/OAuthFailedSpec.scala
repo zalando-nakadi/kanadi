@@ -1,6 +1,7 @@
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import io.circe.Json
 import org.mdedetrich.webmodels.{FlowId, OAuth2Token, OAuth2TokenProvider}
 import org.specs2.Specification
@@ -15,6 +16,8 @@ import concurrent.duration._
 import scala.concurrent.Future
 
 class OAuthFailedSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
+
+  val config = ConfigFactory.load()
 
   implicit val system       = ActorSystem()
   implicit val http         = Http()
