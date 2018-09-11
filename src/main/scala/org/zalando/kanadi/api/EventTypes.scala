@@ -144,6 +144,42 @@ object EventTypeStatistics {
     )(EventTypeStatistics.apply)
 }
 
+case class AuthorizationAttribute(dataType: String, value: String)
+
+object AuthorizationAttribute {
+  implicit val eventTypeAuthorizationAuthorizationAttributeEncoder: Encoder[AuthorizationAttribute] =
+    Encoder.forProduct2(
+      "data_type",
+      "value"
+    )(x => AuthorizationAttribute.unapply(x).get)
+
+  implicit val eventTypeAuthorizationAuthorizationAttributeDecoder: Decoder[AuthorizationAttribute] =
+    Decoder.forProduct2(
+      "data_type",
+      "value"
+    )(AuthorizationAttribute.apply)
+}
+
+case class EventTypeAuthorization(admins: List[AuthorizationAttribute],
+                                  readers: List[AuthorizationAttribute],
+                                  writers: List[AuthorizationAttribute])
+
+object EventTypeAuthorization {
+  implicit val eventTypeAuthorizationEncoder: Encoder[EventTypeAuthorization] =
+    Encoder.forProduct3(
+      "admins",
+      "readers",
+      "writers"
+    )(x => EventTypeAuthorization.unapply(x).get)
+
+  implicit val eventTypeAuthorizationDecoder: Decoder[EventTypeAuthorization] =
+    Decoder.forProduct3(
+      "admins",
+      "readers",
+      "writers"
+    )(EventTypeAuthorization.apply)
+}
+
 case class EventTypeOptions(retentionTime: Int)
 
 object EventTypeOptions {
@@ -170,6 +206,7 @@ object EventTypeOptions {
   * @param partitionKeyFields Required when [[partitionStrategy]] is set to [[org.zalando.kanadi.api.PartitionStrategy.Hash]]. Must be absent otherwise. Indicates the fields used for evaluation the partition of Events of this type. If set it MUST be a valid required field as defined in the schema.
   * @param defaultStatistic Operational statistics for an [[EventType]]. This data MUST be provided by users on Event Type creation. Nakadi uses this object in order to provide an optimal number of partitions from a throughput perspective.
   * @param options Additional parameters for tuning internal behavior of Nakadi.
+  * @param authorization Authorization section for an event type. This section defines three access control lists: one for producing events [[EventTypeAuthorization.writers]], one for consuming events [[EventTypeAuthorization.readers]], and one for administering an event type [[EventTypeAuthorization.admins]]. Regardless of the values of the authorization properties, administrator accounts will always be authorized.
   * @param writeScopes This field is used for event publishing access control. Nakadi only authorises publishers whose session contains at least one of the scopes in this list. If no scopes provided then anyone can publish to this event type.
   * @param readScopes This field is used for event consuming access control. Nakadi only authorises consumers whose session contains at least one of the scopes in this list. If no scopes provided then anyone can consume from this event type.
   * @param createdAt Date and time when this event type was created.
@@ -186,6 +223,7 @@ case class EventType(
     partitionKeyFields: Option[List[String]] = None,
     defaultStatistic: Option[EventTypeStatistics] = None,
     options: Option[EventTypeOptions] = None,
+    authorization: Option[EventTypeAuthorization] = None,
     writeScopes: Option[List[WriteScope]] = None,
     readScopes: Option[List[ReadScope]] = None,
     createdAt: Option[OffsetDateTime] = None,
@@ -193,7 +231,7 @@ case class EventType(
 )
 
 object EventType {
-  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct14(
+  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct15(
     "name",
     "owning_application",
     "category",
@@ -204,13 +242,14 @@ object EventType {
     "partition_key_fields",
     "default_statistic",
     "options",
+    "authorization",
     "write_scopes",
     "read_scopes",
     "created_at",
     "updated_at"
   )(x => EventType.unapply(x).get)
 
-  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct14(
+  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct15(
     "name",
     "owning_application",
     "category",
@@ -221,6 +260,7 @@ object EventType {
     "partition_key_fields",
     "default_statistic",
     "options",
+    "authorization",
     "write_scopes",
     "read_scopes",
     "created_at",
