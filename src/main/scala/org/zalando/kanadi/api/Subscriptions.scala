@@ -22,6 +22,7 @@ import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
 import io.circe.java8.time._
 import io.circe.{Decoder, Encoder, JsonObject}
+import io.circe.syntax._
 import org.zalando.kanadi.api.defaults._
 import org.zalando.kanadi.models._
 import org.mdedetrich.akka.stream.support.CirceStreamSupport
@@ -185,7 +186,9 @@ object Subscriptions {
     case class Partition(partition: models.Partition,
                          state: Partition.State,
                          unconsumedEvents: Option[Int],
-                         streamId: Option[StreamId])
+                         consumerLagSeconds: Option[FiniteDuration],
+                         streamId: Option[StreamId],
+                         assignmentType: Option[Partition.AssignmentType])
 
     object Partition {
       sealed abstract class State(val id: String) extends EnumEntry with Product with Serializable {
@@ -203,13 +206,48 @@ object Subscriptions {
         implicit val subscriptionsEventTypeStatsPartitionStateDecoder: Decoder[State] = enumeratum.Circe.decoder(State)
       }
 
-      implicit val subscriptionsEventTypeStatsPartitionEncoder: Encoder[Partition] =
-        Encoder
-          .forProduct4("partition", "state", "unconsumed_events", "stream_id")(x =>
-            (x.partition, x.state, x.unconsumedEvents, x.streamId))
+      sealed abstract class AssignmentType(val id: String) extends EnumEntry with Product with Serializable {
+        override val entryName = id
+      }
 
-      implicit val subscriptionsEventTypeStatsPartitionDecoder: Decoder[Partition] =
-        Decoder.forProduct4("partition", "state", "unconsumed_events", "stream_id")(Partition.apply)
+      object AssignmentType extends Enum[AssignmentType] {
+        val values = findValues
+
+        case object Direct extends AssignmentType("direct")
+        case object Auto   extends AssignmentType("auto")
+
+        implicit val subscriptionsEventTypeStatsPartitionAssignmentTypeEncoder: Encoder[AssignmentType] =
+          enumeratum.Circe.encoder(AssignmentType)
+        implicit val subscriptionsEventTypeStatsPartitionAssignmentTypeDecoder: Decoder[AssignmentType] =
+          enumeratum.Circe.decoder(AssignmentType)
+
+      }
+
+      implicit val subscriptionsEventTypeStatsPartitionEncoder: Encoder[Partition] = {
+        implicit val finiteDurationSecondsEncoder: Encoder[FiniteDuration] =
+          Encoder.instance[FiniteDuration](_.toSeconds.asJson)
+
+        Encoder
+          .forProduct6("partition",
+                       "state",
+                       "unconsumed_events",
+                       "consumer_lag_seconds",
+                       "stream_id",
+                       "assignment_type")(x =>
+            (x.partition, x.state, x.unconsumedEvents, x.consumerLagSeconds, x.streamId, x.assignmentType))
+      }
+
+      implicit val subscriptionsEventTypeStatsPartitionDecoder: Decoder[Partition] = {
+        implicit val finiteDurationSecondsDecoder: Decoder[FiniteDuration] =
+          Decoder[Long].map(seconds => FiniteDuration(seconds, scala.concurrent.duration.SECONDS))
+
+        Decoder.forProduct6("partition",
+                            "state",
+                            "unconsumed_events",
+                            "consumer_lag_seconds",
+                            "stream_id",
+                            "assignment_type")(Partition.apply)
+      }
 
     }
 
