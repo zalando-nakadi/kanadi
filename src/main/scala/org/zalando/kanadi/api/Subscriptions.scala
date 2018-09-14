@@ -36,35 +36,54 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
+case class SubscriptionAuthorization(admins: List[AuthorizationAttribute], readers: List[AuthorizationAttribute])
+
+object SubscriptionAuthorization {
+  implicit val subscriptionAuthorizationAuthorizationEncoder: Encoder[SubscriptionAuthorization] =
+    Encoder.forProduct2(
+      "admins",
+      "readers"
+    )(x => SubscriptionAuthorization.unapply(x).get)
+
+  implicit val subscriptionAuthorizationDecoder: Decoder[SubscriptionAuthorization] =
+    Decoder.forProduct2(
+      "admins",
+      "readers"
+    )(SubscriptionAuthorization.apply)
+}
+
 case class Subscription(id: Option[SubscriptionId],
                         owningApplication: String,
                         eventTypes: Option[List[EventTypeName]] = None,
                         consumerGroup: Option[String] = None,
                         createdAt: Option[OffsetDateTime] = None,
                         readFrom: Option[String] = None,
-                        initialCursors: Option[List[String]] = None)
+                        initialCursors: Option[List[String]] = None,
+                        authorization: Option[SubscriptionAuthorization] = None)
 
 object Subscription {
   implicit val subscriptionEncoder: Encoder[Subscription] =
-    Encoder.forProduct7(
+    Encoder.forProduct8(
       "id",
       "owning_application",
       "event_types",
       "consumer_group",
       "created_at",
       "read_from",
-      "initial_cursors"
+      "initial_cursors",
+      "authorization"
     )(x => Subscription.unapply(x).get)
 
   implicit val subscriptionDecoder: Decoder[Subscription] =
-    Decoder.forProduct7(
+    Decoder.forProduct8(
       "id",
       "owning_application",
       "event_types",
       "consumer_group",
       "created_at",
       "read_from",
-      "initial_cursors"
+      "initial_cursors",
+      "authorization"
     )(Subscription.apply)
 }
 
