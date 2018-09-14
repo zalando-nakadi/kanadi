@@ -76,6 +76,14 @@ libraryDependencies ++= Seq(
   "org.specs2"                 %% "specs2-core"         % "3.8.9" % Test
 )
 
+composeNoBuild := true
+
+enablePlugins(DockerComposePlugin)
+
+testPassUseSpecs2 := true
+
+composeFile := "nakadi-docker-compose.yml"
+
 scalacOptions in Test ++= Seq("-Yrangepos")
 
 homepage := Some(url("https://github.com/zalando-incubator/kanadi"))

@@ -9,3 +9,5 @@ addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "2.0")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings" % "latest.release")
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
+
+addSbtPlugin("com.tapad" % "sbt-docker-compose" % "1.0.34")
