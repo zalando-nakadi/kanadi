@@ -10,7 +10,7 @@ import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
 trait Config {
   def config: com.typesafe.config.Config
 
-  implicit lazy val nakadiUri: URI = new URI(config.as[String]("kanadi.nakadi.uri"))
+  lazy val nakadiUri: URI = new URI(config.as[String]("kanadi.nakadi.uri"))
 
   implicit lazy val kanadiHttpConfig: HttpConfig = config.as[HttpConfig]("kanadi.http-config")
 }
