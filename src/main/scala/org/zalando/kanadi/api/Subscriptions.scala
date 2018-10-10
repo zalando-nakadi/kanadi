@@ -1055,7 +1055,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                    .via(connectionFlow)
                    .runWith(Sink.head)
                    .map(decodeCompressed)
-
+      _ = logger.debug(response.toString)
       result <- {
         if (response.status.isSuccess()) {
           val streamId = (for {
