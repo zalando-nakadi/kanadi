@@ -72,11 +72,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   val subscriptionClosed: AtomicBoolean              = new AtomicBoolean(false)
   val streamComplete: Promise[Unit]                  = Promise()
 
-  private def randomFlowId(): FlowId =
-    FlowId(java.util.UUID.randomUUID().toString)
-
   def createSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
@@ -99,7 +96,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def publishEvents = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
@@ -119,7 +116,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def startStreaming = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     def stream =
       for {
@@ -163,7 +160,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def getSubscriptionStats = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
 
     val statsPresent = for {
@@ -175,7 +172,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def closeConnection = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
@@ -194,7 +191,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def deleteSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
@@ -205,7 +202,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   }
 
   def deleteEventType = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = eventsTypesClient.delete(eventTypeName)
 

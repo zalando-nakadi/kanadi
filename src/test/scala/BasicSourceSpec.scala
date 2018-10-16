@@ -65,11 +65,8 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   var eventCounter                                   = 0
   val streamComplete: Promise[Unit]                  = Promise()
 
-  private def randomFlowId(): FlowId =
-    FlowId(java.util.UUID.randomUUID().toString)
-
   def createSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
@@ -92,7 +89,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   }
 
   def startStreaming = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     def stream =
       for {
@@ -128,7 +125,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   }
 
   def publishEvents = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
@@ -152,7 +149,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   }
 
   def closeConnection = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
@@ -165,7 +162,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   }
 
   def deleteSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
@@ -176,7 +173,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   }
 
   def deleteEventType = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = eventsTypesClient.delete(eventTypeName)
 
