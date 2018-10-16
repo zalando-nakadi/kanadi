@@ -9,14 +9,12 @@ val akkaVersion            = "2.5.12"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
-crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.6")
+crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.7")
 
 organization := "org.zalando"
 
-javaOptions in Test += "-DTOKEN=" + Option(System.getProperty("TOKEN"))
-  .getOrElse("")
-
-fork in Test := true
+fork in Test := false
+parallelExecution in Test := true
 
 updateOptions := updateOptions.value.withGigahorse(false)
 
@@ -46,7 +44,7 @@ val flagsFor11 = Seq(
 val flagsFor12 = Seq(
   "-Xlint:_",
   "-Ywarn-infer-any",
-  "-opt:l:project"
+  "-opt-inline-from:<sources>"
 )
 
 scalacOptions ++= {
@@ -86,7 +84,8 @@ scmInfo := Some(
 developers := List(
   Developer("mdedetrich", "Matthew de Detrich", "mdedetrich@gmail.com", url("https://github.com/mdedetrich")),
   Developer("xjrk58", "Jiri Syrovy", "jiri.syrovy@zalando.de", url("https://github.com/xjrk58")),
-  Developer("itachi3", "Balaji Sonachalam", "balajispsg@gmail.com", url("https://github.com/itachi3"))
+  Developer("itachi3", "Balaji Sonachalam", "balajispsg@gmail.com", url("https://github.com/itachi3")),
+  Developer("Deeds67", "Pierre Marais", "pierrem@live.co.za", url("https://github.com/Deeds67"))
 )
 
 licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
