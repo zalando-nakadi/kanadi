@@ -71,11 +71,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
 
-  private def randomFlowId(): FlowId =
-    FlowId(java.util.UUID.randomUUID().toString)
-
   def createEventType = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
@@ -90,7 +87,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   val streamComplete: Promise[Boolean]               = Promise()
 
   def createSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
@@ -128,7 +125,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     }
 
   def startStreamBadEvents = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     def stream =
       for {
@@ -184,7 +181,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   }
 
   def closeConnection = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
@@ -203,7 +200,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   }
 
   def deleteSubscription = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
@@ -214,7 +211,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   }
 
   def deleteEventType = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
     val future = eventsTypesClient.delete(eventTypeName)
 

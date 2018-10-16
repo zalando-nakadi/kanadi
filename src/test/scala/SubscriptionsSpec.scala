@@ -41,8 +41,6 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
   eventTypeName.pp
   s"Consumer Group: $consumerGroup".pp
 
-  private def randomFlowId(): FlowId =
-    FlowId(java.util.UUID.randomUUID().toString)
   def createEventType = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
   override def beforeAll = {
@@ -57,10 +55,11 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
       } yield (res1, res2),
       10 seconds
     )
+    ()
   }
 
   def createEnoughSubscriptionsToUsePagination = (name: String) => {
-    implicit val flowId: FlowId = randomFlowId()
+    implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
 
     val createdSubscriptions = Future.sequence(for {
