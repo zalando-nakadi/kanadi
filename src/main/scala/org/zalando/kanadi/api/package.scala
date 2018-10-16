@@ -1,8 +1,8 @@
 package org.zalando.kanadi
 
 import akka.http.scaladsl.coding._
-import akka.http.scaladsl.model.headers.{CensoredRawHeader, HttpEncodings, RawHeader, `Accept-Encoding`}
-import akka.http.scaladsl.model.{ContentTypes, HttpResponse}
+import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.model.{ContentTypes, HttpHeader, HttpRequest, HttpResponse}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import com.typesafe.scalalogging.CanLog
@@ -40,15 +40,22 @@ package object api {
 
       decoder.decodeMessage(response)
     }
+  }
 
-    def toHeader(oAuth2Token: OAuth2Token)(
-        implicit kanadiHttpConfig: HttpConfig): akka.http.javadsl.model.headers.RawHeader = {
-      if (kanadiHttpConfig.censorOAuth2Token)
-        CensoredRawHeader("Authorization",
-                          s"Bearer ${oAuth2Token.token}",
-                          s"Bearer ${oAuth2Token.token.take(3)}...${oAuth2Token.token.takeRight(3)}")
-      else RawHeader("Authorization", s"Bearer ${oAuth2Token.token}")
+  private[api] def toHeader(oAuth2Token: OAuth2Token)(
+      implicit kanadiHttpConfig: HttpConfig): HttpHeader = {
+    if (kanadiHttpConfig.censorOAuth2Token)
+      CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.token}", "Bearer <secret>")
+    else RawHeader("Authorization", s"Bearer ${oAuth2Token.token}")
+  }
+
+  private[api] def stripAuthToken(request: HttpRequest)(implicit kanadiHttpConfig: HttpConfig): HttpRequest = {
+    val headers = request.headers.map {
+      case Authorization(OAuth2BearerToken(token)) =>
+        toHeader(OAuth2Token(token))
+      case rest => rest
     }
+    request.withHeaders(headers)
   }
 
   private[kanadi] implicit final val canLogFlowId: CanLog[FlowId] = new CanLog[FlowId] {
