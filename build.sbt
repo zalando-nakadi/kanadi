@@ -13,8 +13,9 @@ crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.7")
 
 organization := "org.zalando"
 
-fork in Test := false
+fork in Test := true
 parallelExecution in Test := true
+testForkedParallel in Test := true
 
 updateOptions := updateOptions.value.withGigahorse(false)
 

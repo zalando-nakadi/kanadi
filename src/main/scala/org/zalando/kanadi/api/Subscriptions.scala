@@ -1040,23 +1040,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       request = HttpRequest(HttpMethods.GET, uri, headers)
       _       = logger.debug(request.toString)
 
-      connectionPoolSettings = ConnectionPoolSettings(http.system)
-      clientConnectionSettings = connectionPoolSettings.connectionSettings
-        .withIdleTimeout(
-          streamConfig.streamTimeout match {
-            case Some(finiteDuration) => finiteDuration * 1.1
-            case None                 => Duration.Inf
-          }
-        )
-
       // Create a single connection to avoid the pool
-
       connectionFlow = {
         val host = baseUri_.authority.host.toString()
         val port = baseUri_.effectivePort
         if (request.uri.scheme.equalsIgnoreCase("https"))
-          http.outgoingConnectionHttps(host = host, port = port, settings = clientConnectionSettings)
-        else http.outgoingConnection(host = host, port = port, settings = clientConnectionSettings)
+          http.outgoingConnectionHttps(host = host, port = port)
+        else http.outgoingConnection(host = host, port = port)
       }
 
       response <- Source
