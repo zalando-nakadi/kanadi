@@ -174,6 +174,30 @@ object SubscriptionStats {
     Decoder.forProduct1("items")(SubscriptionStats.apply)
 }
 
+final case class CommitCursorItemResponse(cursor: Subscriptions.Cursor, result: String)
+
+object CommitCursorItemResponse {
+  implicit val commitCursorsResponseDecoder: Decoder[CommitCursorItemResponse] = Decoder.forProduct2(
+    "cursor",
+    "result"
+  )(CommitCursorItemResponse.apply)
+
+  implicit val commitCursorsResponseEncoder: Encoder[CommitCursorItemResponse] = Encoder.forProduct2(
+    "cursor",
+    "result"
+  )(x => CommitCursorItemResponse.unapply(x).get)
+}
+
+final case class CommitCursorResponse(items: List[CommitCursorItemResponse])
+
+object CommitCursorResponse {
+  implicit val commitCursorsResponseDecoder: Decoder[CommitCursorResponse] =
+    Decoder.forProduct1("items")(CommitCursorResponse.apply)
+
+  implicit val commitCursorsResponseEncoder: Encoder[CommitCursorResponse] =
+    Encoder.forProduct1("items")(x => CommitCursorResponse.unapply(x).get)
+}
+
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
   sealed abstract class Errors(problem: Problem) extends GeneralError(problem)
@@ -705,7 +729,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   def commitCursors(subscriptionId: SubscriptionId, subscriptionCursor: SubscriptionCursor, streamId: StreamId)(
       implicit flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
-  ): Future[Option[SubscriptionCursor]] = {
+  ): Future[Option[CommitCursorResponse]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
@@ -730,8 +754,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Future.successful(None)
         } else if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionCursor]
-            .map(x => Some(x))
+            .to[CommitCursorResponse]
+            .map { commitCursorsResponse =>
+              logger.warn(
+                s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id} At least one cursor failed to commit, details are $commitCursorsResponse")
+              Some(commitCursorsResponse)
+            }
         } else {
           processNotSuccessful(response)
         }
@@ -1031,23 +1059,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       request = HttpRequest(HttpMethods.GET, uri, headers)
       _       = logger.debug(request.toString)
 
-      connectionPoolSettings = ConnectionPoolSettings(http.system)
-      clientConnectionSettings = connectionPoolSettings.connectionSettings
-        .withIdleTimeout(
-          streamConfig.streamTimeout match {
-            case Some(finiteDuration) => finiteDuration * 1.1
-            case None                 => Duration.Inf
-          }
-        )
-
       // Create a single connection to avoid the pool
-
       connectionFlow = {
         val host = baseUri_.authority.host.toString()
         val port = baseUri_.effectivePort
         if (request.uri.scheme.equalsIgnoreCase("https"))
-          http.outgoingConnectionHttps(host = host, port = port, settings = clientConnectionSettings)
-        else http.outgoingConnection(host = host, port = port, settings = clientConnectionSettings)
+          http.outgoingConnectionHttps(host = host, port = port)
+        else http.outgoingConnection(host = host, port = port)
       }
 
       response <- Source
