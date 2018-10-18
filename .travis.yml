@@ -39,14 +39,14 @@ before_install:
 before_script:
   - sudo service mysql stop # By default travis has a MySQL service running, turn it off to prevent conflicts
   - sudo service postgresql stop # By default travis has a Postgres service running, turn it off to prevent conflicts
-  - docker-compose up -d
+  - docker-compose -f nakadi-docker-compose.yml up -d
 
 script:
  - sbt clean coverage test coverageReport
  - sbt -DTOKEN=test ++$TRAVIS_SCALA_VERSION "test"
 
 after_script:
-  - docker-compose down
+  - docker-compose -f nakadi-docker-compose.yml down
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
