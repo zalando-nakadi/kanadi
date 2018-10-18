@@ -1092,6 +1092,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                 case _                                     => false
               }
               cleanup(streamId, cancelledByClient)
+              ()
             })
             .map { data =>
               logger.debug(
