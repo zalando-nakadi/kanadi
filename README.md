@@ -46,7 +46,7 @@ Kanadi is currently deployed to OSS Sonatype
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.2.3"
+    "org.zalando" %% "kanadi" % "0.2.4"
 )
 ```
 
