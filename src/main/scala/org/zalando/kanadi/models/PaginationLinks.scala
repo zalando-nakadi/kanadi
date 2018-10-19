@@ -3,7 +3,7 @@ package models
 
 import io.circe.{Decoder, Encoder}
 
-case class PaginationLinks(prev: Option[PaginationLink], next: Option[PaginationLink])
+final case class PaginationLinks(prev: Option[PaginationLink], next: Option[PaginationLink])
 
 object PaginationLinks {
   implicit val paginationLinksEncoder: Encoder[PaginationLinks] =

@@ -5,7 +5,7 @@ import java.util.UUID
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-case class SubscriptionId(id: UUID) extends AnyVal
+final case class SubscriptionId(id: UUID) extends AnyVal
 
 object SubscriptionId {
   implicit val subscriptionIdEncoder: Encoder[SubscriptionId] =

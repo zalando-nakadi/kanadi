@@ -4,7 +4,7 @@ package models
 import java.net.URI
 import io.circe.{Decoder, Encoder}
 
-case class PaginationLink(href: URI) extends AnyVal
+final case class PaginationLink(href: URI) extends AnyVal
 
 object PaginationLink {
   implicit val linkEncoder: Encoder[PaginationLink] =

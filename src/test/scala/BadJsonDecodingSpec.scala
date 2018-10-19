@@ -19,7 +19,7 @@ import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.Success
 
-case class SomeBadEvent(firstName: String, lastName: Int, uuid: UUID)
+final case class SomeBadEvent(firstName: String, lastName: Int, uuid: UUID)
 
 object SomeBadEvent {
   implicit val someBadEventEncoder: Encoder[SomeBadEvent] =

@@ -4,7 +4,7 @@ package models
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-case class StreamId(id: String) extends AnyVal
+final case class StreamId(id: String) extends AnyVal
 
 object StreamId {
   implicit val streamIdEncoder: Encoder[StreamId] =

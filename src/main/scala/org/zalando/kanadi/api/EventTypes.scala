@@ -88,10 +88,10 @@ object CompatibilityMode extends Enum[CompatibilityMode] {
     enumeratum.Circe.decoder(CompatibilityMode)
 }
 
-case class EventTypeSchema(version: Option[String],
-                           createdAt: Option[OffsetDateTime],
-                           `type`: EventTypeSchema.Type,
-                           schema: Json)
+final case class EventTypeSchema(version: Option[String],
+                                 createdAt: Option[OffsetDateTime],
+                                 `type`: EventTypeSchema.Type,
+                                 schema: Json)
 
 object EventTypeSchema {
 
@@ -124,7 +124,10 @@ object EventTypeSchema {
     Decoder.forProduct4("version", "created_at", "type", "schema")(EventTypeSchema.apply)
 }
 
-case class EventTypeStatistics(messagesPerMinute: Int, messageSize: Int, readParallelism: Int, writeParallelism: Int)
+final case class EventTypeStatistics(messagesPerMinute: Int,
+                                     messageSize: Int,
+                                     readParallelism: Int,
+                                     writeParallelism: Int)
 
 object EventTypeStatistics {
   implicit val eventTypeStatisticsEncoder: Encoder[EventTypeStatistics] =
@@ -144,7 +147,7 @@ object EventTypeStatistics {
     )(EventTypeStatistics.apply)
 }
 
-case class AuthorizationAttribute(dataType: String, value: String)
+final case class AuthorizationAttribute(dataType: String, value: String)
 
 object AuthorizationAttribute {
   implicit val eventTypeAuthorizationAuthorizationAttributeEncoder: Encoder[AuthorizationAttribute] =
@@ -160,9 +163,9 @@ object AuthorizationAttribute {
     )(AuthorizationAttribute.apply)
 }
 
-case class EventTypeAuthorization(admins: List[AuthorizationAttribute],
-                                  readers: List[AuthorizationAttribute],
-                                  writers: List[AuthorizationAttribute])
+final case class EventTypeAuthorization(admins: List[AuthorizationAttribute],
+                                        readers: List[AuthorizationAttribute],
+                                        writers: List[AuthorizationAttribute])
 
 object EventTypeAuthorization {
   implicit val eventTypeAuthorizationEncoder: Encoder[EventTypeAuthorization] =
@@ -180,7 +183,7 @@ object EventTypeAuthorization {
     )(EventTypeAuthorization.apply)
 }
 
-case class EventTypeOptions(retentionTime: Int)
+final case class EventTypeOptions(retentionTime: Int)
 
 object EventTypeOptions {
   implicit val eventTypeOptionsEncoder: Encoder[EventTypeOptions] =
@@ -212,7 +215,7 @@ object EventTypeOptions {
   * @param createdAt Date and time when this event type was created.
   * @param updatedAt Date and time when this event type was last updated.
   */
-case class EventType(
+final case class EventType(
     name: EventTypeName,
     owningApplication: String,
     category: Category,

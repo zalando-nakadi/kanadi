@@ -11,7 +11,6 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Connection, RawHeader}
-import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream._
 import akka.stream.scaladsl._
@@ -31,12 +30,12 @@ import org.mdedetrich.webmodels.circe._
 import org.zalando.kanadi.models
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
-case class SubscriptionAuthorization(admins: List[AuthorizationAttribute], readers: List[AuthorizationAttribute])
+final case class SubscriptionAuthorization(admins: List[AuthorizationAttribute], readers: List[AuthorizationAttribute])
 
 object SubscriptionAuthorization {
   implicit val subscriptionAuthorizationAuthorizationEncoder: Encoder[SubscriptionAuthorization] =
@@ -52,14 +51,14 @@ object SubscriptionAuthorization {
     )(SubscriptionAuthorization.apply)
 }
 
-case class Subscription(id: Option[SubscriptionId],
-                        owningApplication: String,
-                        eventTypes: Option[List[EventTypeName]] = None,
-                        consumerGroup: Option[String] = None,
-                        createdAt: Option[OffsetDateTime] = None,
-                        readFrom: Option[String] = None,
-                        initialCursors: Option[List[String]] = None,
-                        authorization: Option[SubscriptionAuthorization] = None)
+final case class Subscription(id: Option[SubscriptionId],
+                              owningApplication: String,
+                              eventTypes: Option[List[EventTypeName]] = None,
+                              consumerGroup: Option[String] = None,
+                              createdAt: Option[OffsetDateTime] = None,
+                              readFrom: Option[String] = None,
+                              initialCursors: Option[List[String]] = None,
+                              authorization: Option[SubscriptionAuthorization] = None)
 
 object Subscription {
   implicit val subscriptionEncoder: Encoder[Subscription] =
@@ -87,7 +86,7 @@ object Subscription {
     )(Subscription.apply)
 }
 
-case class SubscriptionQuery(links: PaginationLinks, items: List[Subscription])
+final case class SubscriptionQuery(links: PaginationLinks, items: List[Subscription])
 
 object SubscriptionQuery {
   implicit val subscriptionQueryEncoder: Encoder[SubscriptionQuery] =
@@ -103,7 +102,7 @@ object SubscriptionQuery {
     )(SubscriptionQuery.apply)
 }
 
-case class SubscriptionCursor(items: List[Subscriptions.Cursor])
+final case class SubscriptionCursor(items: List[Subscriptions.Cursor])
 
 object SubscriptionCursor {
   implicit val subscriptionCursorEncoder: Encoder[SubscriptionCursor] =
@@ -113,7 +112,7 @@ object SubscriptionCursor {
     Decoder.forProduct1("items")(SubscriptionCursor.apply)
 }
 
-case class SubscriptionEventInfo(cursor: Subscriptions.Cursor, info: Option[JsonObject])
+final case class SubscriptionEventInfo(cursor: Subscriptions.Cursor, info: Option[JsonObject])
 
 object SubscriptionEventInfo {
   implicit val subscriptionEventInfoEncoder: Encoder[SubscriptionEventInfo] =
@@ -129,7 +128,7 @@ object SubscriptionEventInfo {
     )(SubscriptionEventInfo.apply)
 }
 
-case class SubscriptionEventData[T](events: Option[List[Event[T]]])
+final case class SubscriptionEventData[T](events: Option[List[Event[T]]])
 
 object SubscriptionEventData {
   implicit def subscriptionEventDataEncoder[T](
@@ -145,7 +144,9 @@ object SubscriptionEventData {
     )(SubscriptionEventData.apply)
 }
 
-case class SubscriptionEvent[T](cursor: Subscriptions.Cursor, info: Option[JsonObject], events: Option[List[Event[T]]])
+final case class SubscriptionEvent[T](cursor: Subscriptions.Cursor,
+                                      info: Option[JsonObject],
+                                      events: Option[List[Event[T]]])
 
 object SubscriptionEvent {
 
@@ -164,7 +165,7 @@ object SubscriptionEvent {
     )(SubscriptionEvent.apply)
 }
 
-case class SubscriptionStats(items: List[Subscriptions.EventTypeStats])
+final case class SubscriptionStats(items: List[Subscriptions.EventTypeStats])
 
 object SubscriptionStats {
   implicit val subscriptionStatsEncoder: Encoder[SubscriptionStats] =
@@ -203,17 +204,20 @@ object Subscriptions {
   sealed abstract class Errors(problem: Problem) extends GeneralError(problem)
 
   object Errors {
-    case class NoEmptySlotsOrCursorReset(override val problem: Problem) extends Errors(problem)
-    case class SubscriptionNotFound(override val problem: Problem)      extends Errors(problem)
+    final case class NoEmptySlotsOrCursorReset(override val problem: Problem) extends Errors(problem)
+    final case class SubscriptionNotFound(override val problem: Problem)      extends Errors(problem)
   }
 
-  case class EventJsonParsingException(subscriptionEventInfo: SubscriptionEventInfo,
-                                       jsonParsingException: CirceStreamSupport.JsonParsingException)
+  final case class EventJsonParsingException(subscriptionEventInfo: SubscriptionEventInfo,
+                                             jsonParsingException: CirceStreamSupport.JsonParsingException)
       extends Exception {
     override def getMessage: String = jsonParsingException.getMessage
   }
 
-  case class Cursor(partition: models.Partition, offset: String, eventType: EventTypeName, cursorToken: CursorToken)
+  final case class Cursor(partition: models.Partition,
+                          offset: String,
+                          eventType: EventTypeName,
+                          cursorToken: CursorToken)
 
   object Cursor {
     implicit val subscriptionEventCursorEncoder: Encoder[Cursor] =
@@ -223,15 +227,15 @@ object Subscriptions {
 
   }
 
-  case class EventTypeStats(eventType: EventTypeName, partitions: List[EventTypeStats.Partition])
+  final case class EventTypeStats(eventType: EventTypeName, partitions: List[EventTypeStats.Partition])
 
   object EventTypeStats {
-    case class Partition(partition: models.Partition,
-                         state: Partition.State,
-                         unconsumedEvents: Option[Int],
-                         consumerLagSeconds: Option[FiniteDuration],
-                         streamId: Option[StreamId],
-                         assignmentType: Option[Partition.AssignmentType])
+    final case class Partition(partition: models.Partition,
+                               state: Partition.State,
+                               unconsumedEvents: Option[Int],
+                               consumerLagSeconds: Option[FiniteDuration],
+                               streamId: Option[StreamId],
+                               assignmentType: Option[Partition.AssignmentType])
 
     object Partition {
       sealed abstract class State(val id: String) extends EnumEntry with Product with Serializable {
@@ -316,10 +320,10 @@ object Subscriptions {
     *               else it will use the flowId used when [[Subscriptions.eventsStreamed]] is called
     * @tparam T
     */
-  case class EventCallbackData[T](subscriptionEvent: SubscriptionEvent[T],
-                                  streamId: StreamId,
-                                  request: HttpRequest,
-                                  flowId: Option[FlowId])
+  final case class EventCallbackData[T](subscriptionEvent: SubscriptionEvent[T],
+                                        streamId: StreamId,
+                                        request: HttpRequest,
+                                        flowId: Option[FlowId])
 
   /**
     *
@@ -340,7 +344,7 @@ object Subscriptions {
       * @param eventCallback
       * @tparam T
       */
-    case class simple[T](eventCallback: EventCallbackData[T] => Unit, override val separateFlowId: Boolean = true)
+    final case class simple[T](eventCallback: EventCallbackData[T] => Unit, override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
     /**
@@ -348,8 +352,8 @@ object Subscriptions {
       * @param eventCallback
       * @tparam T
       */
-    case class successAlways[T](eventCallback: EventCallbackData[T] => Unit,
-                                override val separateFlowId: Boolean = true)
+    final case class successAlways[T](eventCallback: EventCallbackData[T] => Unit,
+                                      override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
     /**
@@ -357,27 +361,27 @@ object Subscriptions {
       * @param eventCallback
       * @tparam T
       */
-    case class successPredicate[T](eventCallback: EventCallbackData[T] => Boolean,
-                                   override val separateFlowId: Boolean = true)
-        extends EventCallback[T](separateFlowId)
-
-    /**
-      * Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
-      * @param eventCallback
-      * @tparam T
-      */
-    case class successPredicateFuture[T](eventCallback: EventCallbackData[T] => Future[Boolean],
+    final case class successPredicate[T](eventCallback: EventCallbackData[T] => Boolean,
                                          override val separateFlowId: Boolean = true)
+        extends EventCallback[T](separateFlowId)
+
+    /**
+      * Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
+      * @param eventCallback
+      * @tparam T
+      */
+    final case class successPredicateFuture[T](eventCallback: EventCallbackData[T] => Future[Boolean],
+                                               override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
   }
 
-  case class ConnectionClosedData(occurredAt: OffsetDateTime,
-                                  subscriptionId: SubscriptionId,
-                                  oldStreamId: StreamId,
-                                  cancelledByClient: Boolean)
+  final case class ConnectionClosedData(occurredAt: OffsetDateTime,
+                                        subscriptionId: SubscriptionId,
+                                        oldStreamId: StreamId,
+                                        cancelledByClient: Boolean)
 
-  case class ConnectionClosedCallback(connectionClosedCallback: ConnectionClosedData => Unit)
+  final case class ConnectionClosedCallback(connectionClosedCallback: ConnectionClosedData => Unit)
 
   /**
     *
@@ -386,12 +390,13 @@ object Subscriptions {
     * @param streamId Current Stream Id
     * @param subscriptionsClient the current subscription client that is being used
     */
-  case class EventStreamContext(flowId: FlowId,
-                                subscriptionId: SubscriptionId,
-                                streamId: StreamId,
-                                subscriptionsClient: Subscriptions)
+  final case class EventStreamContext(flowId: FlowId,
+                                      subscriptionId: SubscriptionId,
+                                      streamId: StreamId,
+                                      subscriptionsClient: Subscriptions)
 
-  case class EventStreamSupervisionDecider(private val privateDecider: EventStreamContext => Supervision.Decider) {
+  final case class EventStreamSupervisionDecider(
+      private val privateDecider: EventStreamContext => Supervision.Decider) {
     def decider(eventStreamContext: EventStreamContext): Supervision.Decider =
       privateDecider(eventStreamContext)
   }
@@ -456,6 +461,14 @@ object Subscriptions {
                                    source: Source[SubscriptionEvent[T], UniqueKillSwitch],
                                    request: HttpRequest)
 
+}
+
+/**
+  * Exception that is passed if the stream is cancelled by the client
+  */
+final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: StreamId) extends Exception {
+  override def getMessage =
+    s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
 }
 
 case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
@@ -1413,14 +1426,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
               streamConfig
             ))
       }
-  }
-
-  /**
-    * Exception that is passed if the stream is cancelled by the client
-    */
-  case class CancelledByClient(subscriptionId: SubscriptionId, streamId: StreamId) extends Exception {
-    override def getMessage =
-      s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
   }
 
   /**
