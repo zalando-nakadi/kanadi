@@ -6,7 +6,7 @@ import java.util.UUID
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-case class CursorToken(id: UUID) extends AnyVal
+final case class CursorToken(id: UUID) extends AnyVal
 
 object CursorToken {
   implicit val cursorTokenEncoder: Encoder[CursorToken] =

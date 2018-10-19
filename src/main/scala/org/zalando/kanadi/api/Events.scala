@@ -29,7 +29,10 @@ import scala.concurrent.{ExecutionContext, Future}
 sealed abstract class Event[T](val data: T)
 
 object Event {
-  case class DataChange[T](override val data: T, dataType: String, dataOperation: DataOperation, metadata: Metadata)
+  final case class DataChange[T](override val data: T,
+                                 dataType: String,
+                                 dataOperation: DataOperation,
+                                 metadata: Metadata)
       extends Event[T](data)
 
   object DataChange {
@@ -50,7 +53,7 @@ object Event {
       )(DataChange.apply)
   }
 
-  case class Business[T](override val data: T, metadata: Metadata = Metadata()) extends Event[T](data)
+  final case class Business[T](override val data: T, metadata: Metadata = Metadata()) extends Event[T](data)
 
   object Business {
     implicit def eventBusinessEncoder[T](implicit encoder: Encoder[T]): Encoder[Business[T]] =
@@ -73,7 +76,7 @@ object Event {
       }
   }
 
-  case class Undefined[T](override val data: T) extends Event[T](data)
+  final case class Undefined[T](override val data: T) extends Event[T](data)
 
   object Undefined {
     implicit def eventUndefinedEncoder[T](implicit encoder: Encoder[T]): Encoder[Undefined[T]] =
@@ -138,13 +141,13 @@ object DataOperation extends Enum[DataOperation] {
     enumeratum.Circe.decoder(DataOperation)
 }
 
-case class Metadata(eid: EventId = EventId.random,
-                    occurredAt: OffsetDateTime = OffsetDateTime.now,
-                    eventType: Option[EventTypeName] = None,
-                    receivedAt: Option[OffsetDateTime] = None,
-                    parentEids: Option[List[EventId]] = None,
-                    flowId: Option[FlowId] = None,
-                    partition: Option[Partition] = None)
+final case class Metadata(eid: EventId = EventId.random,
+                          occurredAt: OffsetDateTime = OffsetDateTime.now,
+                          eventType: Option[EventTypeName] = None,
+                          receivedAt: Option[OffsetDateTime] = None,
+                          parentEids: Option[List[EventId]] = None,
+                          flowId: Option[FlowId] = None,
+                          partition: Option[Partition] = None)
 
 object Metadata {
 
@@ -170,10 +173,10 @@ object Metadata {
 }
 
 object Events {
-  case class BatchItemResponse(eid: Option[EventId],
-                               publishingStatus: PublishingStatus,
-                               step: Option[Step],
-                               detail: Option[String])
+  final case class BatchItemResponse(eid: Option[EventId],
+                                     publishingStatus: PublishingStatus,
+                                     step: Option[Step],
+                                     detail: Option[String])
 
   object BatchItemResponse {
     implicit val batchItemResponseEncoder: Encoder[BatchItemResponse] =
@@ -230,7 +233,7 @@ object Events {
   sealed abstract class Errors extends Exception
 
   object Errors {
-    case class EventValidation(batchItemResponse: List[BatchItemResponse]) extends Errors {
+    final case class EventValidation(batchItemResponse: List[BatchItemResponse]) extends Errors {
       override def getMessage: String =
         s"Error publishing events, errors are ${batchItemResponse.mkString("\n")}"
     }

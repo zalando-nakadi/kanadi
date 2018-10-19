@@ -2,7 +2,7 @@ package org.zalando.kanadi.models
 
 import io.circe.{Decoder, Encoder}
 
-case class BasicServerError(error: String, errorDescription: String)
+final case class BasicServerError(error: String, errorDescription: String)
 
 object BasicServerError {
   implicit val basicServerErrorEncoder: Encoder[BasicServerError] =

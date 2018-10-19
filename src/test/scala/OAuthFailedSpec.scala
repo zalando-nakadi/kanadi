@@ -35,7 +35,6 @@ class OAuthFailedSpec(implicit ec: ExecutionEnv) extends Specification with Futu
     Call to publishEvents should fail with invalid token        $oAuthPublishEvents
   """
 
-
   def oAuthCallSubscriptions = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)

@@ -3,7 +3,7 @@ package org.zalando.kanadi.models
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-case class EventTypeName(name: String) extends AnyVal
+final case class EventTypeName(name: String) extends AnyVal
 
 object EventTypeName {
   implicit val eventTypeNameEncoder: Encoder[EventTypeName] =

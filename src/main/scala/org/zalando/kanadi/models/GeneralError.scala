@@ -7,7 +7,7 @@ class GeneralError(val problem: Problem) extends Exception {
   override def getMessage: String = s"Error from server, response is $problem"
 }
 
-case class OtherError(error: BasicServerError) extends Exception {
+final case class OtherError(error: BasicServerError) extends Exception {
   override def getMessage: String = s"Error from server, response is $error"
 }
 

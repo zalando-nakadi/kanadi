@@ -42,8 +42,7 @@ package object api {
     }
   }
 
-  private[api] def toHeader(oAuth2Token: OAuth2Token)(
-      implicit kanadiHttpConfig: HttpConfig): HttpHeader = {
+  private[api] def toHeader(oAuth2Token: OAuth2Token)(implicit kanadiHttpConfig: HttpConfig): HttpHeader = {
     if (kanadiHttpConfig.censorOAuth2Token)
       CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.token}", "Bearer <secret>")
     else RawHeader("Authorization", s"Bearer ${oAuth2Token.token}")

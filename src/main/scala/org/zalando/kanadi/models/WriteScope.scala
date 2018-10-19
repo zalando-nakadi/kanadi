@@ -3,7 +3,7 @@ package org.zalando.kanadi.models
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-case class WriteScope(id: String) extends AnyVal
+final case class WriteScope(id: String) extends AnyVal
 
 object WriteScope {
   implicit val writeScopeEncoder: Encoder[WriteScope] =
