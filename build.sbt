@@ -1,11 +1,11 @@
 name := """kanadi"""
 
-val akkaHttpVersion        = "10.1.3"
+val akkaHttpVersion        = "10.1.5"
 val akkaStreamsJsonVersion = "0.2.0"
 val currentScalaVersion    = "2.11.12"
 val enumeratumCirceVersion = "1.5.12"
 val circeVersion           = "0.10.0"
-val akkaVersion            = "2.5.12"
+val akkaVersion            = "2.5.17"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
