@@ -540,14 +540,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         consumerGroupCheck && idCheck
       }
 
-      head = collect.headOption
-
-      createIfEmpty <- {
-        head match {
-          case Some(subscription) => Future.successful(subscription)
-          case None               => create(subscription)
-        }
-      }
+      createIfEmpty <- collect.headOption.map(Future(_)).getOrElse(create(subscription))
 
     } yield createIfEmpty
   }
