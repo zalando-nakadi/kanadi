@@ -24,6 +24,25 @@ import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
 
+sealed abstract class Audience(val id: String) extends EnumEntry with Product with Serializable {
+  override val entryName = id
+}
+
+object Audience extends Enum[Audience] {
+  val values = findValues
+  case object BusinessUnitInternal extends Audience("business-unit-internal")
+  case object CompanyInternal      extends Audience("company-internal")
+  case object ComponentInternal    extends Audience("component-internal")
+  case object ExternalPartner      extends Audience("external-partner")
+  case object ExternalPublic       extends Audience("external-public")
+
+  implicit val audienceEncoder: Encoder[Audience] =
+    enumeratum.Circe.encoder(Audience)
+
+  implicit val audienceDecoder: Decoder[Audience] =
+    enumeratum.Circe.decoder(Audience)
+}
+
 sealed abstract class Category(val id: String) extends EnumEntry with Product with Serializable {
   override val entryName = id
 }
@@ -69,6 +88,21 @@ object PartitionStrategy extends Enum[PartitionStrategy] {
     enumeratum.Circe.encoder(PartitionStrategy)
   implicit val partitionStrategyDecoder: Decoder[PartitionStrategy] =
     enumeratum.Circe.decoder(PartitionStrategy)
+}
+
+sealed abstract class CleanupPolicy(val id: String) extends EnumEntry with Product with Serializable {
+  override def entryName = id
+}
+
+object CleanupPolicy extends Enum[CleanupPolicy] {
+  val values = findValues
+  case object Compact extends CleanupPolicy("compact")
+  case object Delete  extends CleanupPolicy("delete")
+
+  implicit val cleanupPolicyEncoder: Encoder[CleanupPolicy] =
+    enumeratum.Circe.encoder(CleanupPolicy)
+  implicit val cleanupPolicyDecoder: Decoder[CleanupPolicy] =
+    enumeratum.Circe.decoder(CleanupPolicy)
 }
 
 sealed abstract class CompatibilityMode(val id: String) extends EnumEntry with Product with Serializable {
@@ -207,11 +241,15 @@ object EventTypeOptions {
   * @param compatibilityMode Compatibility mode provides a mean for event owners to evolve their schema, given changes respect the semantics defined by this field. It's designed to be flexible enough so that producers can evolve their schemas while not inadvertently breaking existent consumers. Once defined, the compatibility mode is fixed, since otherwise it would break a predefined contract, declared by the producer. List of compatibility modes: - [[CompatibilityMode.Compatible]]: Consumers can reliably parse events produced under different versions. Every event published since the first version is still valid based on the newest schema. When in compatible mode, it's allowed to add new optional properties and definitions to an existing schema, but no other changes are allowed. Under this mode, the following [[org.zalando.kanadi.api.EventTypeSchema.Type.JsonSchema]] attributes are not supported: `not`, `patternProperties`, `additionalProperties` and `additionalItems`. When validating events, additional properties is `false`. - [[CompatibilityMode.Forward]]: Compatible schema changes are allowed. It's possible to use the full json schema specification for defining schemas. Consumers of forward compatible event types can safely read events tagged with the latest schema version as long as they follow the robustness principle. - [[CompatibilityMode.None]]: Any schema modification is accepted, even if it might break existing producers or consumers. When validating events, no additional properties are accepted unless explicitly stated in the schema.
   * @param schema The most recent schema for this EventType. Submitted events will be validated against it.
   * @param partitionKeyFields Required when [[partitionStrategy]] is set to [[org.zalando.kanadi.api.PartitionStrategy.Hash]]. Must be absent otherwise. Indicates the fields used for evaluation the partition of Events of this type. If set it MUST be a valid required field as defined in the schema.
+  * @param cleanupPolicy Event Type Cleanup Policy. 'delete' will delete old events after retention time expires. 'compact' will keep only the latest event for each event key. The key that will be used as a compaction key should be specified in [[PartitionCompactionKey]].
   * @param defaultStatistic Operational statistics for an [[EventType]]. This data MUST be provided by users on Event Type creation. Nakadi uses this object in order to provide an optimal number of partitions from a throughput perspective.
   * @param options Additional parameters for tuning internal behavior of Nakadi.
   * @param authorization Authorization section for an event type. This section defines three access control lists: one for producing events [[EventTypeAuthorization.writers]], one for consuming events [[EventTypeAuthorization.readers]], and one for administering an event type [[EventTypeAuthorization.admins]]. Regardless of the values of the authorization properties, administrator accounts will always be authorized.
   * @param writeScopes This field is used for event publishing access control. Nakadi only authorises publishers whose session contains at least one of the scopes in this list. If no scopes provided then anyone can publish to this event type.
   * @param readScopes This field is used for event consuming access control. Nakadi only authorises consumers whose session contains at least one of the scopes in this list. If no scopes provided then anyone can consume from this event type.
+  * @param audience Intended target audience of the event type.
+  * @param orderingKeyFields This is an optional field which can be useful in case the producer wants to communicate the complete order across all the events published to all the partitions.
+  * @param orderingInstanceIds Indicates which field represents the data instance identifier and scope in which ordering_key_fields provides a strict order.
   * @param createdAt Date and time when this event type was created.
   * @param updatedAt Date and time when this event type was last updated.
   */
@@ -224,17 +262,21 @@ final case class EventType(
     compatibilityMode: Option[CompatibilityMode] = None,
     schema: EventTypeSchema = EventTypeSchema.anyJsonObject,
     partitionKeyFields: Option[List[String]] = None,
+    cleanupPolicy: Option[CleanupPolicy] = None,
     defaultStatistic: Option[EventTypeStatistics] = None,
     options: Option[EventTypeOptions] = None,
     authorization: Option[EventTypeAuthorization] = None,
     writeScopes: Option[List[WriteScope]] = None,
     readScopes: Option[List[ReadScope]] = None,
+    audience: Option[Audience] = None,
+    orderingKeyFields: Option[List[String]] = None,
+    orderingInstanceIds: Option[List[String]] = None,
     createdAt: Option[OffsetDateTime] = None,
     updatedAt: Option[OffsetDateTime] = None
 )
 
 object EventType {
-  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct15(
+  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct19(
     "name",
     "owning_application",
     "category",
@@ -243,16 +285,20 @@ object EventType {
     "compatibility_mode",
     "schema",
     "partition_key_fields",
+    "cleanup_policy",
     "default_statistic",
     "options",
     "authorization",
     "write_scopes",
     "read_scopes",
+    "audience",
+    "ordering_key_fields",
+    "ordering_instance_ids",
     "created_at",
     "updated_at"
   )(x => EventType.unapply(x).get)
 
-  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct15(
+  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct19(
     "name",
     "owning_application",
     "category",
@@ -261,11 +307,15 @@ object EventType {
     "compatibility_mode",
     "schema",
     "partition_key_fields",
+    "cleanup_policy",
     "default_statistic",
     "options",
     "authorization",
     "write_scopes",
     "read_scopes",
+    "audience",
+    "ordering_key_fields",
+    "ordering_instance_ids",
     "created_at",
     "updated_at"
   )(EventType.apply)

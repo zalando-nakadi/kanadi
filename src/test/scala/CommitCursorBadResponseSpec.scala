@@ -23,7 +23,7 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
   override def is: SpecStructure = sequential ^ s2"""
     Create Event Type          $createEventType
     Create Subscription events $createSubscription
-    Stream subscritpion        $streamSubscriptionId
+    Stream subscription        $streamSubscriptionId
   """
 
   val config = ConfigFactory.load()
