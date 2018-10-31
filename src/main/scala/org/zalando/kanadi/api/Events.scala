@@ -147,28 +147,34 @@ final case class Metadata(eid: EventId = EventId.random,
                           receivedAt: Option[OffsetDateTime] = None,
                           parentEids: Option[List[EventId]] = None,
                           flowId: Option[FlowId] = None,
-                          partition: Option[Partition] = None)
+                          partition: Option[Partition] = None,
+                          partitionCompactionKey: Option[PartitionCompactionKey] = None,
+                          spanCtx: Option[SpanCtx] = None)
 
 object Metadata {
 
-  implicit val metadataEncoder: Encoder[Metadata] = Encoder.forProduct7(
+  implicit val metadataEncoder: Encoder[Metadata] = Encoder.forProduct9(
     "eid",
     "occurred_at",
     "event_type",
     "received_at",
     "parent_eids",
     "flow_id",
-    "partition"
+    "partition",
+    "partition_compaction_key",
+    "span_ctx"
   )(x => Metadata.unapply(x).get)
 
-  implicit val metadataDecoder: Decoder[Metadata] = Decoder.forProduct7(
+  implicit val metadataDecoder: Decoder[Metadata] = Decoder.forProduct9(
     "eid",
     "occurred_at",
     "event_type",
     "received_at",
     "parent_eids",
     "flow_id",
-    "partition"
+    "partition",
+    "partition_compaction_key",
+    "span_ctx"
   )(Metadata.apply)
 }
 
