@@ -411,10 +411,17 @@ object Subscriptions {
             s"SubscriptionId: ${eventStreamContext.subscriptionId.id.toString}, StreamId: ${eventStreamContext.streamId.id} Unable to parse JSON (committing cursor), subscription event info is ${parsingException.subscriptionEventInfo.toString}",
             parsingException
           )
-          eventStreamContext.subscriptionsClient.commitCursors(
-            eventStreamContext.subscriptionId,
-            SubscriptionCursor(List(parsingException.subscriptionEventInfo.cursor)),
-            eventStreamContext.streamId)
+          eventStreamContext.subscriptionsClient
+            .commitCursors(eventStreamContext.subscriptionId,
+                           SubscriptionCursor(List(parsingException.subscriptionEventInfo.cursor)),
+                           eventStreamContext.streamId)
+            .onComplete {
+              case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                logger.error(
+                  s"Error committing cursors SubscriptionId: ${eventStreamContext.subscriptionId.id.toString}, StreamId: ${eventStreamContext.streamId.id}",
+                  e)
+              case _ =>
+            }
           Supervision.Resume
         case termination: EntityStreamException if termination.getMessage.contains("Entity stream truncation") =>
           implicit val flowId: FlowId = eventStreamContext.flowId
@@ -1215,7 +1222,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         case Subscriptions.EventCallback.successAlways(cb, _) =>
           commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
             currentFlowId.getOrElse(randomFlowId()),
-            implicitly)
+            implicitly).onComplete {
+            case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+              logger.error(
+                s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                e)
+            case _ =>
+          }
           logAlwaysSuccess()
           try {
             cb(
@@ -1253,7 +1266,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             case Some(true) =>
               commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
                 currentFlowId.getOrElse(randomFlowId()),
-                implicitly)
+                implicitly).onComplete {
+                case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                  logger.error(
+                    s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                    e)
+                case _ =>
+              }
               logPredicateTrue()
             case Some(false) =>
               logPredicateFalse()
@@ -1284,7 +1303,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                 case util.Success(true) =>
                   commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
                     currentFlowId.getOrElse(randomFlowId()),
-                    implicitly)
+                    implicitly).onComplete {
+                    case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                      logger.error(
+                        s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                        e)
+                    case _ =>
+                  }
                   logPredicateTrue()
                 case util.Success(false) =>
                   logPredicateFalse()
