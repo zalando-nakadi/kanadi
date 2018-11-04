@@ -5,7 +5,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import io.circe.{Decoder, Encoder}
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
@@ -20,7 +19,7 @@ import org.zalando.kanadi.api.Subscriptions.{
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -79,8 +78,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       Subscription(
         None,
         OwningApplication,
-        Option(List(eventTypeName)),
-        Option(consumerGroup)
+        Some(List(eventTypeName)),
+        Some(consumerGroup)
       ))
 
     future.onComplete {
@@ -90,8 +89,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo(
-      (OwningApplication, Option(List(eventTypeName))))
+    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
       .await(0, timeout = 5 seconds)
   }
 
@@ -101,7 +99,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
-    events = Option(
+    events = Some(
       List(
         SomeEvent("Robert", "Terwilliger", uUIDOne),
         SomeEvent("Die", "Bart, Die", uUIDTwo)

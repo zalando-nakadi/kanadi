@@ -1,7 +1,9 @@
 import java.util.UUID
+
+import cats.syntax.either._
+import cats.instances.either._
 import org.specs2.Specification
 import org.specs2.specification.core.SpecStructure
-import org.specs2.matcher.Matchers
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
@@ -9,14 +11,19 @@ import io.circe.java8.time._
 import org.zalando.kanadi.api.Event
 import org.zalando.kanadi.api.DataOperation
 import org.zalando.kanadi.api.Metadata
-import org.zalando.kanadi.models.EventId
+import org.zalando.kanadi.models.{EventId, SpanCtx}
 import java.time.OffsetDateTime
 
+import io.circe.CursorOp.DownField
+
 class JsonSpec extends Specification {
-  override def is: SpecStructure = sequential ^ s2"""
-    Parse business events      $businessEvent
-    Parse data events          $dataEvent
-    Parse undefined events     $undefinedEvent
+  override def is: SpecStructure = s2"""
+    Parse business events         $businessEvent
+    Parse data events             $dataEvent
+    Parse undefined events        $undefinedEvent
+    SpanCtx decoding example      $decodeSpnCtx
+    SpanCtx encoding example      $encodeSpnCtx
+    SpanCtx fail decoding example $badDecodeSpnCtx
     """
 
   val uuid      = UUID.randomUUID()
@@ -58,4 +65,34 @@ class JsonSpec extends Specification {
   def undefinedEvent = {
     decode[Event[SomeEvent]](undefinedEventJson) must beRight(Event.Undefined(testEvent))
   }
+
+  // Sample data is taken from official Nakadi source at https://github.com/zalando/nakadi/blob/effb2ed7e95bd329ab73ce06b2857aa57510e539/src/test/java/org/zalando/nakadi/validation/JSONSchemaValidationTest.java
+
+  val spanCtxJson =
+    """{"eid":"5678","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":"e9435c17dabe8238","ot-baggage-foo":"bar"}}"""
+
+  val spanCtxBadJson =
+    """{"eid":"5678","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":42,"ot-baggage-foo":"bar"}}"""
+
+  val spanCtxEventMetadata = Metadata(
+    eid = EventId("5678"),
+    occurredAt = OffsetDateTime.parse("1992-08-03T10:00:00Z"),
+    spanCtx = Some(
+      SpanCtx(
+        Map(
+          "ot-tracer-spanid"  -> "b268f901d5f2b865",
+          "ot-tracer-traceid" -> "e9435c17dabe8238",
+          "ot-baggage-foo"    -> "bar"
+        )))
+  )
+
+  def decodeSpnCtx =
+    decode[Metadata](spanCtxJson) must beRight(spanCtxEventMetadata)
+
+  def encodeSpnCtx =
+    spanCtxEventMetadata.asJson.pretty(Printer.noSpaces.copy(dropNullValues = true)) mustEqual spanCtxJson
+
+  def badDecodeSpnCtx =
+    decode[Metadata](spanCtxBadJson) must beLeft(
+      DecodingFailure("String", List(DownField("ot-tracer-traceid"), DownField("span_ctx"))))
 }

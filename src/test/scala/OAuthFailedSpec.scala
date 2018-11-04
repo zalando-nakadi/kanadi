@@ -22,7 +22,7 @@ class OAuthFailedSpec(implicit ec: ExecutionEnv) extends Specification with Futu
   implicit val system       = ActorSystem()
   implicit val http         = Http()
   implicit val materializer = ActorMaterializer()
-  val failingOauth2TokenProvider = Option(
+  val failingOauth2TokenProvider = Some(
     OAuth2TokenProvider(() => Future.successful(OAuth2Token("Failing token")))
   )
 

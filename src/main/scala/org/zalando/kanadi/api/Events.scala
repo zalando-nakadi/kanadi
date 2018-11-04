@@ -286,9 +286,9 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     val finalEvents = if (fillMetadata) {
       events.map {
         case e: Event.Business[_] =>
-          e.copy(metadata = e.metadata.copy(eventType = Option(e.metadata.eventType.getOrElse(name))))
+          e.copy(metadata = e.metadata.copy(eventType = Some(e.metadata.eventType.getOrElse(name))))
         case e: Event.DataChange[_] =>
-          e.copy(metadata = e.metadata.copy(eventType = Option(e.metadata.eventType.getOrElse(name))))
+          e.copy(metadata = e.metadata.copy(eventType = Some(e.metadata.eventType.getOrElse(name))))
         case e: Event.Undefined[_] => e
       }
     } else events

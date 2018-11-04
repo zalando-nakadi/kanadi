@@ -7,5 +7,5 @@ object TokenProvider {
     throw new IllegalArgumentException("Expected token")
   )
 
-  val environmentTokenProvider = Option(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
+  val environmentTokenProvider = Some(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
 }

@@ -3,10 +3,9 @@ package org.zalando.kanadi
 import java.net.URI
 import io.circe.syntax._
 import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
 
-class URIDecodingSpec(implicit ec: ExecutionEnv) extends Specification {
-  override def is = sequential ^ s2"""
+class URIDecodingSpec extends Specification {
+  override def is = s2"""
       Encode and decode an absolute URI $absoluteURI
       Encode and decode a relative URI $relativeURI
       """
