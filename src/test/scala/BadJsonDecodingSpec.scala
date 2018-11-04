@@ -93,8 +93,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       Subscription(
         None,
         OwningApplication,
-        Option(List(eventTypeName)),
-        Option(consumerGroup)
+        Some(List(eventTypeName)),
+        Some(consumerGroup)
       ))
 
     future.onComplete {
@@ -104,8 +104,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo(
-      (OwningApplication, Option(List(eventTypeName))))
+    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
       .await(0, timeout = 3 seconds)
   }
 
@@ -162,7 +161,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
-    events = Option(
+    events = Some(
       List(
         SomeEvent("Robert", "Terwilliger", uUIDOne),
         SomeEvent("Die", "Bart, Die", uUIDTwo)
