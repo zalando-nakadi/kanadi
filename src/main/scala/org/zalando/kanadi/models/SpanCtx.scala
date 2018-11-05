@@ -3,11 +3,11 @@ package org.zalando.kanadi.models
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-final case class SpanCtx(ctx: String) extends AnyVal
+final case class SpanCtx(ctx: Map[String, String]) extends AnyVal
 
 object SpanCtx {
-  implicit val eventIdEncoder: Encoder[SpanCtx] =
+  implicit val spanCtxEncoder: Encoder[SpanCtx] =
     Encoder.instance[SpanCtx](_.ctx.asJson)
-  implicit val eventIdDecoder: Decoder[SpanCtx] =
-    Decoder[String].map(SpanCtx.apply)
+  implicit val spanCtxDecoder: Decoder[SpanCtx] =
+    Decoder[Map[String, String]].map(SpanCtx.apply)
 }

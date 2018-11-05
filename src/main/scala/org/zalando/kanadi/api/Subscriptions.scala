@@ -334,7 +334,7 @@ object Subscriptions {
     * @tparam T
     */
   sealed abstract class EventCallback[T](val separateFlowId: Boolean) {
-    def generateFlowId: Option[FlowId] = Option(randomFlowId())
+    def generateFlowId: Option[FlowId] = Some(randomFlowId())
   }
 
   object EventCallback {
@@ -530,7 +530,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       executionContext: ExecutionContext
   ): Future[Subscription] = {
     for {
-      subscriptions <- list(Option(subscription.owningApplication), subscription.eventTypes)
+      subscriptions <- list(Some(subscription.owningApplication), subscription.eventTypes)
       collect = subscriptions.items.filter { returningSubscription =>
         val consumerGroupCheck = subscription.consumerGroup match {
           case None => true
@@ -547,7 +547,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         consumerGroupCheck && idCheck
       }
 
-      createIfEmpty <- collect.headOption.map(Future(_)).getOrElse(create(subscription))
+      createIfEmpty <- collect.headOption.map(Future.successful).getOrElse(create(subscription))
 
     } yield createIfEmpty
   }
@@ -961,7 +961,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                       case Left(error)   => throw error
                       case Right(result) => result
                     }
-                    .limit(kanadiHttpConfig.eventListChunkLength)
+                    .limit(kanadiHttpConfig.eventListChunkLength.toLong)
                     .runWith(Sink.seq)
                 }
               } yield result.to[List]
@@ -1179,11 +1179,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       }
 
     def handleSubscriptionEvent(streamId: StreamId, request: HttpRequest, subscriptionEvent: SubscriptionEvent[T]) = {
-      val currentFlowId = if (eventCallback.separateFlowId) {
-        eventCallback.generateFlowId
-      } else {
-        Option(flowId)
-      }
+      val currentFlowId =
+        if (eventCallback.separateFlowId)
+          eventCallback.generateFlowId
+        else
+          Some(flowId)
 
       @inline def logDetails =
         s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}, CursorToken: ${subscriptionEvent.cursor.cursorToken}, Partition: ${subscriptionEvent.cursor.partition.id}"
@@ -1246,7 +1246,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           logger.debug(s"$logDetails Executing callback")
 
           val predicate = try {
-            val f = Option(
+            val f = Some(
               cb(
                 Subscriptions.EventCallbackData(
                   subscriptionEvent,
@@ -1281,7 +1281,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
         case Subscriptions.EventCallback.successPredicateFuture(cb, _) =>
           val eventualPredicate = try {
-            val f = Option(
+            val f = Some(
               cb(
                 Subscriptions.EventCallbackData(
                   subscriptionEvent,

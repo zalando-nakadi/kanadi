@@ -91,8 +91,7 @@ class AuthorizationSpec(implicit ec: ExecutionEnv) extends Specification with Fu
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo(
-      (OwningApplication, Option(List(eventTypeName))))
+    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
       .await(0, timeout = 5 seconds)
   }
 
