@@ -11,12 +11,12 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
 import org.zalando.kanadi.Config
-import org.zalando.kanadi.api.Subscriptions.{ConnectionClosedCallback, defaultEventStreamSupervisionDecider}
+import org.zalando.kanadi.api.Subscriptions.defaultEventStreamSupervisionDecider
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Promise
 import scala.util.Success
 
 class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
@@ -72,8 +72,8 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
       Subscription(
         None,
         OwningApplication,
-        Option(List(eventTypeName)),
-        Option(consumerGroup)
+        Some(List(eventTypeName)),
+        Some(consumerGroup)
       ))
 
     future.onComplete {
@@ -83,8 +83,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo(
-      (OwningApplication, Option(List(eventTypeName))))
+    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
       .await(0, timeout = 5 seconds)
   }
 
@@ -130,7 +129,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
-    events = Option(
+    events = Some(
       List(
         SomeEvent("Robert", "Terwilliger", uUIDOne),
         SomeEvent("Die", "Bart, Die", uUIDTwo)
