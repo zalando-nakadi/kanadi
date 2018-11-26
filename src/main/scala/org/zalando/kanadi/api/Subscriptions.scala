@@ -1389,7 +1389,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         // Executing the original callback if specified
         connectionClosedCallback.connectionClosedCallback(connectionClosedData)
       },
-      streamConfig
+      streamConfig,
+      modifySourceFunction
     ).map { streamId =>
         logger.info(
           s"Initialized Nakadi Stream with StreamId: ${streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
