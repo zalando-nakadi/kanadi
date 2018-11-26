@@ -69,6 +69,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   var events: Option[List[SomeEvent]]                = None
   val eventCounter                                   = new AtomicInteger(0)
   val subscriptionClosed: AtomicBoolean              = new AtomicBoolean(false)
+  val modifySourceFunctionActivated: AtomicBoolean   = new AtomicBoolean(false)
   val streamComplete: Promise[Unit]                  = Promise()
 
   def createSubscription = (name: String) => {
@@ -137,6 +138,11 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
                    ConnectionClosedCallback { connectionClosedData =>
                      if (connectionClosedData.cancelledByClient)
                        subscriptionClosed.set(true)
+                   },
+                   Subscriptions.StreamConfig(),
+                   Some { source =>
+                     modifySourceFunctionActivated.set(true)
+                     source
                    }
                  )
       } yield stream
@@ -181,11 +187,12 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
 
     val future = for {
-      closed       <- closedFuture
-      waitForClose <- waitForCloseFuture
-    } yield (closed, waitForClose)
+      closed                <- closedFuture
+      waitForClose          <- waitForCloseFuture
+      modifySourceActivated = modifySourceFunctionActivated.get()
+    } yield (closed, waitForClose, modifySourceActivated)
 
-    future must be_==((true, true)).await(0, timeout = 1 minute)
+    future must be_==((true, true, true)).await(0, timeout = 1 minute)
   }
 
   def deleteSubscription = (name: String) => {
