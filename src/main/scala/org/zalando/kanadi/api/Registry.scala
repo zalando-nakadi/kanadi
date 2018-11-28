@@ -19,7 +19,8 @@ import scala.concurrent.{ExecutionContext, Future}
 case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
                                                                                            kanadiHttpConfig: HttpConfig,
                                                                                            http: HttpExt,
-                                                                                           materializer: Materializer) {
+                                                                                           materializer: Materializer)
+    extends RegistryInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Registry])
   private val baseUri_                               = Uri(baseUri.toString)
 

@@ -325,7 +325,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
-    materializer: Materializer) {
+    materializer: Materializer)
+    extends EventTypesInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[EventTypes])
 
   private val baseUri_ = Uri(baseUri.toString)

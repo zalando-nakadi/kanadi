@@ -482,7 +482,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     implicit kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
-    extends {
+    extends SubscriptionsInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Subscriptions])
   private val baseUri_                               = Uri(baseUri.toString)
 
@@ -822,7 +822,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
+  private def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
     : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
     GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
@@ -1389,7 +1389,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         // Executing the original callback if specified
         connectionClosedCallback.connectionClosedCallback(connectionClosedData)
       },
-      streamConfig
+      streamConfig,
+      modifySourceFunction
     ).map { streamId =>
         logger.info(
           s"Initialized Nakadi Stream with StreamId: ${streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
