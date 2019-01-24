@@ -46,7 +46,7 @@ Kanadi is currently deployed to OSS Sonatype. For Circe 0.10.x use Kanadi 0.3.x
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.3.3"
+    "org.zalando" %% "kanadi" % "0.3.4"
 )
 ```
 
