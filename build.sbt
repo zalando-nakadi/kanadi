@@ -132,6 +132,24 @@ publishTo := {
     Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
+def emptyStringToNone(string: String): Option[String] =
+  if (string.trim.isEmpty)
+    None
+  else
+    Some(string)
+
+javaOptions ++= sys.props
+  .get("TOKEN")
+  .flatMap(emptyStringToNone)
+  .map { token =>
+    s"-DTOKEN=$token"
+  }
+  .toList
+
+envVars ++= Map("TOKEN" -> sys.env.get("TOKEN").flatMap(emptyStringToNone)).collect {
+  case (k, Some(v)) => (k, v)
+}
+
 publishArtifact in Test := false
 
 pomIncludeRepository := (_ => false)
