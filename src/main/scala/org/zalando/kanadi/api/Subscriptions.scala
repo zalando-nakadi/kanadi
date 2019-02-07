@@ -412,9 +412,11 @@ object Subscriptions {
             parsingException
           )
           eventStreamContext.subscriptionsClient
-            .commitCursors(eventStreamContext.subscriptionId,
-                           SubscriptionCursor(List(parsingException.subscriptionEventInfo.cursor)),
-                           eventStreamContext.streamId)
+            .commitCursors(
+              eventStreamContext.subscriptionId,
+              SubscriptionCursor(List(parsingException.subscriptionEventInfo.cursor)),
+              eventStreamContext.streamId
+            )
             .onComplete {
               case scala.util.Failure(scala.util.control.NonFatal(e)) =>
                 logger.error(
@@ -728,7 +730,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   }
 
   /**
-    * Endpoint for committing offsets of the subscription. If there is uncommited data, and no commits happen for 60 seconds, then Nakadi will consider the client to be gone, and will close the connection. As long as no events are sent, the client does not need to commit.
+    * Endpoint for committing offsets of the subscription. If there is uncommitted data, and no commits happen for 60 seconds, then Nakadi will consider the client to be gone, and will close the connection. As long as no events are sent, the client does not need to commit.
     *
     * If the connection is closed, the client has 60 seconds to commit the events it received, from the moment they were sent. After that, the connection will be considered closed, and it will not be possible to do commit with that X-Nakadi-StreamId anymore.
     *
@@ -736,10 +738,14 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @param subscriptionId Id of subscription
     * @param subscriptionCursor
     * @param streamId Id of stream which client uses to read events. It is not possible to make a commit for a terminated or none-existing stream. Also the client can't commit something which was not sent to his stream.
+    * @param eventBatch Whether it's an event batch or not (e.g. keep-alive).
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def commitCursors(subscriptionId: SubscriptionId, subscriptionCursor: SubscriptionCursor, streamId: StreamId)(
+  def commitCursors(subscriptionId: SubscriptionId,
+                    subscriptionCursor: SubscriptionCursor,
+                    streamId: StreamId,
+                    eventBatch: Boolean = true)(
       implicit flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[CommitCursorResponse]] = {
@@ -756,10 +762,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                       toHeader(oAuth2Token) +: streamHeaders
                     }
                 }
-      entity   <- Marshal(subscriptionCursor).to[RequestEntity]
-      request  = HttpRequest(HttpMethods.POST, uri, headers, entity)
-      _        = logger.debug(request.toString)
-      response <- http.singleRequest(request).map(decodeCompressed)
+      entity  <- Marshal(subscriptionCursor).to[RequestEntity]
+      request = HttpRequest(HttpMethods.POST, uri, headers, entity)
+      _       = logger.debug(request.toString)
+      response <- if (eventBatch) http.singleRequest(request).map(decodeCompressed)
+                 else Future.successful(HttpResponse(StatusCodes.NoContent))
       result <- {
         if (response.status == StatusCodes.NoContent) {
           // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
@@ -778,6 +785,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         }
       }
     } yield result
+
   }
 
   def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(
@@ -1220,15 +1228,17 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           }
 
         case Subscriptions.EventCallback.successAlways(cb, _) =>
-          commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
-            currentFlowId.getOrElse(randomFlowId()),
-            implicitly).onComplete {
-            case scala.util.Failure(scala.util.control.NonFatal(e)) =>
-              logger.error(
-                s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
-                e)
-            case _ =>
-          }
+          commitCursors(subscriptionId,
+                        SubscriptionCursor(List(subscriptionEvent.cursor)),
+                        streamId,
+                        subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+            .onComplete {
+              case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                logger.error(
+                  s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                  e)
+              case _ =>
+            }
           logAlwaysSuccess()
           try {
             cb(
@@ -1264,15 +1274,17 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
           predicate match {
             case Some(true) =>
-              commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
-                currentFlowId.getOrElse(randomFlowId()),
-                implicitly).onComplete {
-                case scala.util.Failure(scala.util.control.NonFatal(e)) =>
-                  logger.error(
-                    s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
-                    e)
-                case _ =>
-              }
+              commitCursors(subscriptionId,
+                            SubscriptionCursor(List(subscriptionEvent.cursor)),
+                            streamId,
+                            subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+                .onComplete {
+                  case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                    logger.error(
+                      s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                      e)
+                  case _ =>
+                }
               logPredicateTrue()
             case Some(false) =>
               logPredicateFalse()
@@ -1301,15 +1313,17 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             case Some(predicate) =>
               predicate.onComplete {
                 case util.Success(true) =>
-                  commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), streamId)(
-                    currentFlowId.getOrElse(randomFlowId()),
-                    implicitly).onComplete {
-                    case scala.util.Failure(scala.util.control.NonFatal(e)) =>
-                      logger.error(
-                        s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
-                        e)
-                    case _ =>
-                  }
+                  commitCursors(subscriptionId,
+                                SubscriptionCursor(List(subscriptionEvent.cursor)),
+                                streamId,
+                                subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+                    .onComplete {
+                      case scala.util.Failure(scala.util.control.NonFatal(e)) =>
+                        logger.error(
+                          s"Error committing cursors SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}",
+                          e)
+                      case _ =>
+                    }
                   logPredicateTrue()
                 case util.Success(false) =>
                   logPredicateFalse()
