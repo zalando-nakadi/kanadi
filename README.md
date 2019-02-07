@@ -589,6 +589,12 @@ directly may be to use the source stream directly (detailed [below](#using-the-s
 akka-streams are fully 
 [backpressured](https://doc.akka.io/docs/akka/2.5.3/scala/stream/stream-flows-and-basics.html#back-pressure-explained).
 
+Cursors within a `eventsStreamManaged` are committed automatically for batches which contain the `events` property
+(`eventCallbackData.subscriptionEvent.events`). Whenever the end of the stream is reached and no new events are received,
+Nakadi will keep the connection open by sending “keep-alive” batches. These batches don’t contain the `events` property
+and therefore are not committed. If there is for some reason the need to override this default behavior, `commitCursors`
+takes the boolean flag `eventBatch` as fourth parameter. If it is set to `true` the cursors will be committed.
+
 #### Using the source stream directly
 
 There is also a `Subscriptions.eventsStreamedSource` method which exposes the Nakadi stream as an akka-stream `Source`,
