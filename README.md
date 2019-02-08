@@ -860,22 +860,49 @@ although it should be fine if you only have a single stream open for listening t
 Tests are located [here](https://github.bus.zalan.do/grip/kanadi/tree/master/src/test/scala). The tests are complete
 integration tests, and we generate random event types to isolate our tests and make sure they are deterministic.
 
+### Tracing (OpenTracing)
+Nakadi now supports [OpenTracing](https://opentracing.io/) by automatically propagating span contexts (if they exist)
+whenever you send an event. The span context can be retrieved from the 
+`span_ctx` [field in the event](https://nakadi.io/manual.html#definition_EventMetadata*span_ctx).
+
+The format for the `span_ctx` field is `Format.Builtin.TEXT_MAP`, below is an example code example of how you
+would extract the span context from Nakadi event metadata (if it exists).
+
+```scala
+import org.zalando.kanadi.api.Metadata
+import collection.JavaConverters._
+import io.opentracing.{Span, Tracer}
+import io.opentracing.propagation.{Format, TextMapExtractAdapter}
+
+
+def createSpanFromMetadata(metadata: Metadata, tracer: Tracer, operationName: String): Span = {
+  metadata.spanCtx match {
+    case Some(spanCtx) =>
+      val spanContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(spanCtx.ctx.asJava))
+      tracer.buildSpan(operationName).asChildOf(spanContext).start()
+    case None =>
+      tracer.buildSpan(operationName).start
+  }
+}
+```
+
 ### Monitoring
 
 Since this project uses akka-http, you can use either 
-[Cinnamon](https://developer.lightbend.com/docs/cinnamon/2.5.x/introduction/introduction.html)
+[Cinnamon](https://developer.lightbend.com/docs/telemetry/current/home.html)
 (for lightbend enterprise subscriptions) or [Kamon](https://github.com/kamon-io/kamon-akka-http) to monitor the Nakadi
-streams on a deeper level.
+streams on a deeper level as well as the http requests.
 
 ### TODO
 
 * Provide a benchmark/stress testing suite to battle test Kanadi against really high Nakadi payloads.
 * No new features are currently planned as we have coverage of the Nakadi API and we deliberately try to limit the
-scope of the project to just processing Nakadi events.
+scope of the project to just processing Nakadi events. When new features are added to Nakadi we try
+to add them as soon as possible into Kanadi.
 * Migrate README.md to github pages as a better documentation format.
 * Migrate to ScalaTest for testing as it has better `Future` support.
 * Investigate using akka-http's `akka.http.scaladsl.util.FastFuture` rather than normal `Future` in `for` comprehensions
-to improve performance a bit.
+to improve performance a bit. Note that Scala 2.13.x will make this redundant, see this [PR](https://github.com/scala/scala/pull/7470)
 
 ### Known Bugs
 
