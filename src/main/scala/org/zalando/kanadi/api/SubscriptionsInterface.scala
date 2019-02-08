@@ -41,7 +41,10 @@ trait SubscriptionsInterface {
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionCursor]]
 
-  def commitCursors(subscriptionId: SubscriptionId, subscriptionCursor: SubscriptionCursor, streamId: StreamId)(
+  def commitCursors(subscriptionId: SubscriptionId,
+                    subscriptionCursor: SubscriptionCursor,
+                    streamId: StreamId,
+                    eventBatch: Boolean)(
       implicit flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[CommitCursorResponse]]
