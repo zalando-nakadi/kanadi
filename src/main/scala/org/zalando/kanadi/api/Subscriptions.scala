@@ -502,7 +502,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -594,7 +594,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -631,7 +631,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -671,7 +671,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -706,7 +706,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -758,7 +758,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(streamHeaders)
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: streamHeaders
                     }
                 }
@@ -799,7 +799,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -922,7 +922,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }
@@ -1072,7 +1072,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(streamHeaders)
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: streamHeaders
                     }
                 }
@@ -1515,7 +1515,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders(flowId))
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders(flowId)
                     }
                 }

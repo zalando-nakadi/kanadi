@@ -26,7 +26,7 @@ package object api {
       Printer.noSpaces.copy(dropNullValues = true)
 
     def baseHeaders(flowId: FlowId) =
-      List(RawHeader(`X-Flow-ID`, flowId.id), `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate))
+      List(RawHeader(`X-Flow-ID`, flowId.value), `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate))
 
     def decodeCompressed(response: HttpResponse): HttpResponse = {
       val decoder = response.encoding match {
@@ -44,8 +44,8 @@ package object api {
 
   private[api] def toHeader(oAuth2Token: OAuth2Token)(implicit kanadiHttpConfig: HttpConfig): HttpHeader = {
     if (kanadiHttpConfig.censorOAuth2Token)
-      CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.token}", "Bearer <secret>")
-    else RawHeader("Authorization", s"Bearer ${oAuth2Token.token}")
+      CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.value}", "Bearer <secret>")
+    else RawHeader("Authorization", s"Bearer ${oAuth2Token.value}")
   }
 
   private[api] def stripAuthToken(request: HttpRequest)(implicit kanadiHttpConfig: HttpConfig): HttpRequest = {
@@ -59,7 +59,7 @@ package object api {
 
   private[kanadi] implicit final val canLogFlowId: CanLog[FlowId] = new CanLog[FlowId] {
     override def logMessage(originalMsg: String, flowId: FlowId): String = {
-      MDC.put("flow_id", flowId.id)
+      MDC.put("flow_id", flowId.value)
       originalMsg
     }
 
