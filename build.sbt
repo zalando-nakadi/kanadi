@@ -9,7 +9,7 @@ val akkaVersion            = "2.5.21"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
-crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.7")
+crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.12.8")
 
 organization := "org.zalando"
 
