@@ -282,7 +282,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "events")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.id))
+    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
 
     val finalEvents = if (fillMetadata) {
       events.map {
@@ -298,7 +298,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders)
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders
                     }
                 }
