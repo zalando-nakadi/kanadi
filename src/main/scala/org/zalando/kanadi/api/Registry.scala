@@ -34,13 +34,13 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "enrichment-strategies")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.id))
+    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
 
     for {
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders)
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders
                     }
                 }
@@ -75,13 +75,13 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "partition-strategies")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.id))
+    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
 
     for {
       headers <- oAuth2TokenProvider match {
                   case None => Future.successful(baseHeaders)
                   case Some(futureProvider) =>
-                    futureProvider.provider().map { oAuth2Token =>
+                    futureProvider.value().map { oAuth2Token =>
                       toHeader(oAuth2Token) +: baseHeaders
                     }
                 }
