@@ -309,8 +309,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       response <- http.singleRequest(request)
       result <- {
         if (response.status.isSuccess()) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(())
         } else {
           response.status match {

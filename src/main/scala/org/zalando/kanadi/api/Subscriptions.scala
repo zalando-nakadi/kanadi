@@ -640,8 +640,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
@@ -680,8 +679,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(())
         } else {
           processNotSuccessful(response)
@@ -716,8 +714,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       result <- {
         response.status match {
           case StatusCodes.NotFound | StatusCodes.NoContent =>
-            // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-            response.entity.dataBytes.runWith(Sink.ignore)
+            response.discardEntityBytes()
             Future.successful(None)
           case s if s.isSuccess() =>
             Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
@@ -769,8 +766,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                  else Future.successful(HttpResponse(StatusCodes.NoContent))
       result <- {
         if (response.status == StatusCodes.NoContent) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
@@ -816,12 +812,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(false)
         } else if (response.status.isSuccess()) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(true)
         } else {
           processNotSuccessful(response)
@@ -1524,8 +1518,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {
-          // TODO: Replace with response.discardEntityBytes once this is resolved: https://github.com/akka/akka-http/issues/1459
-          response.entity.dataBytes.runWith(Sink.ignore)
+          response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
