@@ -42,11 +42,10 @@ package object api {
     }
   }
 
-  private[api] def toHeader(oAuth2Token: OAuth2Token)(implicit kanadiHttpConfig: HttpConfig): HttpHeader = {
+  private[api] def toHeader(oAuth2Token: OAuth2Token)(implicit kanadiHttpConfig: HttpConfig): HttpHeader =
     if (kanadiHttpConfig.censorOAuth2Token)
       CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.value}", "Bearer <secret>")
     else RawHeader("Authorization", s"Bearer ${oAuth2Token.value}")
-  }
 
   private[api] def stripAuthToken(request: HttpRequest)(implicit kanadiHttpConfig: HttpConfig): HttpRequest = {
     val headers = request.headers.map {
@@ -63,13 +62,12 @@ package object api {
       originalMsg
     }
 
-    override def afterLog(flowId: FlowId): Unit = {
+    override def afterLog(flowId: FlowId): Unit =
       MDC.remove("flow_id")
-    }
   }
 
   def processNotSuccessful(response: HttpResponse)(implicit materializer: Materializer,
-                                                   executionContext: ExecutionContext): Future[Nothing] = {
+                                                   executionContext: ExecutionContext): Future[Nothing] =
     for {
       json <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                .to[Json]
@@ -85,5 +83,4 @@ package object api {
         case Right(problem) => throw new GeneralError(problem)
       }
     }
-  }
 }
