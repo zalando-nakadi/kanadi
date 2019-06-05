@@ -325,8 +325,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
-    materializer: Materializer,
-    executionContext: ExecutionContext)
+    materializer: Materializer)
     extends EventTypesInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[EventTypes])
 
@@ -337,7 +336,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def list()(implicit flowId: FlowId = randomFlowId()): Future[List[EventType]] = {
+  def list()(implicit flowId: FlowId = randomFlowId(), executionContext: ExecutionContext): Future[List[EventType]] = {
     val uri = baseUri_.withPath(baseUri_.path / "event-types")
 
     val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
@@ -384,7 +383,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def create(eventType: EventType)(implicit flowId: FlowId = randomFlowId()): Future[Unit] = {
+  def create(eventType: EventType)(implicit flowId: FlowId = randomFlowId(),
+                                   executionContext: ExecutionContext): Future[Unit] = {
     val uri = baseUri_.withPath(baseUri_.path / "event-types")
 
     val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
@@ -417,7 +417,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def get(name: EventTypeName)(implicit flowId: FlowId = randomFlowId()): Future[Option[EventType]] = {
+  def get(name: EventTypeName)(implicit flowId: FlowId = randomFlowId(),
+                               executionContext: ExecutionContext): Future[Option[EventType]] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 
@@ -456,7 +457,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def update(name: EventTypeName, eventType: EventType)(implicit flowId: FlowId = randomFlowId()): Future[Unit] = {
+  def update(name: EventTypeName, eventType: EventType)(implicit flowId: FlowId = randomFlowId(),
+                                                        executionContext: ExecutionContext): Future[Unit] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 
@@ -495,7 +497,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def delete(name: EventTypeName)(implicit flowId: FlowId = randomFlowId()): Future[Unit] = {
+  def delete(name: EventTypeName)(implicit flowId: FlowId = randomFlowId(),
+                                  executionContext: ExecutionContext): Future[Unit] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 

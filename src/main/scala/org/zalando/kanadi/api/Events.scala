@@ -10,6 +10,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
 import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -245,12 +246,10 @@ object Events {
   }
 }
 
-case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
-    implicit
-    kanadiHttpConfig: HttpConfig,
-    http: HttpExt,
-    materializer: Materializer,
-    executionContext: ExecutionContext)
+case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+                                                                                         kanadiHttpConfig: HttpConfig,
+                                                                                         http: HttpExt,
+                                                                                         materializer: Materializer)
     extends EventsInterface {
   private val baseUri_                               = Uri(baseUri.toString)
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Events])
@@ -277,7 +276,8 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     */
   def publish[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
       implicit encoder: Encoder[T],
-      flowId: FlowId = randomFlowId()
+      flowId: FlowId = randomFlowId(),
+      executionContext: ExecutionContext
   ): Future[Unit] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "events")
