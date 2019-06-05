@@ -43,9 +43,8 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
 
   def createEventType = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
-  override def beforeAll = {
+  override def beforeAll =
     Await.result(createEventType, 10 seconds)
-  }
 
   override def afterAll = {
     Await.result(

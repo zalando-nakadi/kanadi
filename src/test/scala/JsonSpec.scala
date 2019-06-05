@@ -54,17 +54,14 @@ class JsonSpec extends Specification {
 
   val undefinedEventJson = s"{$coreEventJson}"
 
-  def businessEvent = {
+  def businessEvent =
     decode[Event[SomeEvent]](businessEventJson) must beRight(Event.Business(testEvent, md))
-  }
 
-  def dataEvent = {
+  def dataEvent =
     decode[Event[SomeEvent]](dataEventJson) must beRight(Event.DataChange(testEvent, "blah", DataOperation.Create, md))
-  }
 
-  def undefinedEvent = {
+  def undefinedEvent =
     decode[Event[SomeEvent]](undefinedEventJson) must beRight(Event.Undefined(testEvent))
-  }
 
   // Sample data is taken from official Nakadi source at https://github.com/zalando/nakadi/blob/effb2ed7e95bd329ab73ce06b2857aa57510e539/src/test/java/org/zalando/nakadi/validation/JSONSchemaValidationTest.java
 
