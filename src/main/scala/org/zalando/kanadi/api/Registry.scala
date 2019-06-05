@@ -16,12 +16,10 @@ import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
-    implicit
-    kanadiHttpConfig: HttpConfig,
-    http: HttpExt,
-    materializer: Materializer,
-    executionContext: ExecutionContext)
+case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+                                                                                           kanadiHttpConfig: HttpConfig,
+                                                                                           http: HttpExt,
+                                                                                           materializer: Materializer)
     extends RegistryInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Registry])
   private val baseUri_                               = Uri(baseUri.toString)
@@ -31,7 +29,8 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return Returns a list of all enrichment strategies known to Nakadi
     */
-  def enrichmentStrategies(implicit flowId: FlowId = randomFlowId()): Future[List[String]] = {
+  def enrichmentStrategies(implicit flowId: FlowId = randomFlowId(),
+                           executionContext: ExecutionContext): Future[List[String]] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "enrichment-strategies")
 
@@ -71,7 +70,8 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return Returns a list of all partitioning strategies known to Nakadi
     */
-  def partitionStrategies(implicit flowId: FlowId = randomFlowId()): Future[List[PartitionStrategy]] = {
+  def partitionStrategies(implicit flowId: FlowId = randomFlowId(),
+                          executionContext: ExecutionContext): Future[List[PartitionStrategy]] = {
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "partition-strategies")
 
