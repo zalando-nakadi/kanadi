@@ -483,7 +483,8 @@ final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: Str
 case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
     implicit kanadiHttpConfig: HttpConfig,
     http: HttpExt,
-    materializer: Materializer)
+    materializer: Materializer,
+    executionContext: ExecutionContext)
     extends SubscriptionsInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Subscriptions])
   private val baseUri_                               = Uri(baseUri.toString)
@@ -494,8 +495,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
     * @return
     */
-  def create(subscription: Subscription)(implicit flowId: FlowId = randomFlowId(),
-                                         executionContext: ExecutionContext): Future[Subscription] = {
+  def create(subscription: Subscription)(implicit flowId: FlowId = randomFlowId()): Future[Subscription] = {
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions")
 
     for {
@@ -528,8 +528,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return
     */
   def createIfDoesntExist(subscription: Subscription)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Subscription] =
     for {
       subscriptions <- list(Some(subscription.owningApplication), subscription.eventTypes)
@@ -566,8 +565,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
            eventType: Option[List[EventTypeName]] = None,
            limit: Option[Int] = None,
            offset: Option[Int] = None)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[SubscriptionQuery] = {
     val eventsTypesQuery = eventType match {
       case Some(events) =>
@@ -620,8 +618,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return
     */
   def get(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[Subscription]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
@@ -659,8 +656,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return
     */
   def delete(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Unit] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
@@ -694,8 +690,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return
     */
   def cursors(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[SubscriptionCursor]] = {
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
@@ -742,8 +737,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                     subscriptionCursor: SubscriptionCursor,
                     streamId: StreamId,
                     eventBatch: Boolean = true)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[CommitCursorResponse]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
@@ -784,8 +778,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   }
 
   def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Boolean] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
@@ -891,8 +884,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                             streamTimeout: Option[FiniteDuration] = None,
                             streamKeepAliveLimit: Option[Int] = None)(
       implicit decoder: Decoder[List[Event[T]]],
-      flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      flowId: FlowId = randomFlowId()
   ): Future[List[SubscriptionEvent[T]]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "events")
@@ -1033,7 +1025,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
       : Future[Subscriptions.NakadiSource[T]] = {
     val uri           = getStreamUri(subscriptionId, streamConfig)
@@ -1167,7 +1158,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                                                                                    UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] = {
 
@@ -1222,7 +1212,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           commitCursors(subscriptionId,
                         SubscriptionCursor(List(subscriptionEvent.cursor)),
                         streamId,
-                        subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+                        subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()))
             .onComplete {
               case scala.util.Failure(scala.util.control.NonFatal(e)) =>
                 logger.error(
@@ -1268,7 +1258,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
               commitCursors(subscriptionId,
                             SubscriptionCursor(List(subscriptionEvent.cursor)),
                             streamId,
-                            subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+                            subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()))
                 .onComplete {
                   case scala.util.Failure(scala.util.control.NonFatal(e)) =>
                     logger.error(
@@ -1307,7 +1297,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                   commitCursors(subscriptionId,
                                 SubscriptionCursor(List(subscriptionEvent.cursor)),
                                 streamId,
-                                subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()), implicitly)
+                                subscriptionEvent.events.isDefined)(currentFlowId.getOrElse(randomFlowId()))
                     .onComplete {
                       case scala.util.Failure(scala.util.control.NonFatal(e)) =>
                         logger.error(
@@ -1350,7 +1340,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T], UniqueKillSwitch]])(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
     akka.pattern
@@ -1402,7 +1391,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                                                                                           UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
     eventsStreamed[T](
@@ -1445,7 +1433,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
       : Future[Subscriptions.NakadiSource[T]] =
     eventsStreamedSource[T](
@@ -1493,8 +1480,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return
     */
   def stats(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[SubscriptionStats]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "stats")
