@@ -10,48 +10,40 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait SubscriptionsInterface {
-  def create(subscription: Subscription)(implicit flowId: FlowId = randomFlowId(),
-                                         executionContext: ExecutionContext): Future[Subscription]
+  def create(subscription: Subscription)(implicit flowId: FlowId = randomFlowId()): Future[Subscription]
 
   def createIfDoesntExist(subscription: Subscription)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Subscription]
 
   def list(owningApplication: Option[String] = None,
            eventType: Option[List[EventTypeName]] = None,
            limit: Option[Int] = None,
            offset: Option[Int] = None)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[SubscriptionQuery]
 
   def get(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[Subscription]]
 
   def delete(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Unit]
 
   def cursors(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[SubscriptionCursor]]
 
   def commitCursors(subscriptionId: SubscriptionId,
                     subscriptionCursor: SubscriptionCursor,
                     streamId: StreamId,
                     eventBatch: Boolean)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[CommitCursorResponse]]
 
   def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Boolean]
 
   def eventsStrictUnsafe[T](subscriptionId: SubscriptionId,
@@ -62,8 +54,7 @@ trait SubscriptionsInterface {
                             streamTimeout: Option[FiniteDuration] = None,
                             streamKeepAliveLimit: Option[Int] = None)(
       implicit decoder: Decoder[List[Event[T]]],
-      flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      flowId: FlowId = randomFlowId()
   ): Future[List[SubscriptionEvent[T]]]
 
   def eventsStreamedSource[T](subscriptionId: SubscriptionId,
@@ -75,7 +66,6 @@ trait SubscriptionsInterface {
       implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider): Future[Subscriptions.NakadiSource[T]]
 
   def eventsStreamed[T](subscriptionId: SubscriptionId,
@@ -90,7 +80,6 @@ trait SubscriptionsInterface {
                                                                                    UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId]
 
@@ -106,7 +95,6 @@ trait SubscriptionsInterface {
                                                                                           UniqueKillSwitch]] = None)(
       implicit decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId]
 
@@ -119,13 +107,11 @@ trait SubscriptionsInterface {
       implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
-      executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider): Future[Subscriptions.NakadiSource[T]]
 
   def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean
 
   def stats(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      implicit flowId: FlowId = randomFlowId()
   ): Future[Option[SubscriptionStats]]
 }

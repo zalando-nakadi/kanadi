@@ -9,7 +9,6 @@ import scala.concurrent.{ExecutionContext, Future}
 trait EventsInterface {
   def publish[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
       implicit encoder: Encoder[T],
-      flowId: FlowId = randomFlowId(),
-      executionContext: ExecutionContext
+      flowId: FlowId = randomFlowId()
   ): Future[Unit]
 }
