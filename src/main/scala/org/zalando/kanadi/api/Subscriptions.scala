@@ -528,7 +528,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   def createIfDoesntExist(subscription: Subscription)(
       implicit flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
-  ): Future[Subscription] = {
+  ): Future[Subscription] =
     for {
       subscriptions <- list(Some(subscription.owningApplication), subscription.eventTypes)
       collect = subscriptions.items.filter { returningSubscription =>
@@ -550,7 +550,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       createIfEmpty <- collect.headOption.map(Future.successful).getOrElse(create(subscription))
 
     } yield createIfEmpty
-  }
 
   /**
     * Lists all subscriptions that exist in a system. List is ordered by creation date/time descending (newest subscriptions come first).
@@ -823,7 +822,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   }
 
   private def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
-    : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
+      : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
     GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
       import org.mdedetrich.akka.stream.support.CirceStreamSupport
@@ -981,7 +980,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                             uniqueKillSwitch: UniqueKillSwitch): Unit =
     killSwitches((subscriptionId, streamId)) = uniqueKillSwitch
 
-  private def getStreamUri(subscriptionId: SubscriptionId, streamConfig: Subscriptions.StreamConfig) = {
+  private def getStreamUri(subscriptionId: SubscriptionId, streamConfig: Subscriptions.StreamConfig) =
     baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "events")
       .withQuery(
@@ -998,11 +997,9 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             case (k, Some(v)) => (k, v)
           })
       )
-  }
 
-  private def getBaseHeaders(implicit flowId: FlowId): List[HttpHeader] = {
+  private def getBaseHeaders(implicit flowId: FlowId): List[HttpHeader] =
     baseHeaders(flowId) :+ Connection("Keep-Alive")
-  }
 
   /**
     * Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between
@@ -1036,7 +1033,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       flowId: FlowId,
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
-    : Future[Subscriptions.NakadiSource[T]] = {
+      : Future[Subscriptions.NakadiSource[T]] = {
     val uri           = getStreamUri(subscriptionId, streamConfig)
     val streamHeaders = getBaseHeaders
 
@@ -1399,7 +1396,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
-  ): Future[StreamId] = {
+  ): Future[StreamId] =
     eventsStreamed[T](
       subscriptionId,
       eventCallback,
@@ -1430,7 +1427,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
           reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
       }
-  }
 
   def eventsStreamedSourceManaged[T](subscriptionId: SubscriptionId,
                                      connectionClosedCallback: Subscriptions.ConnectionClosedCallback =
@@ -1443,7 +1439,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       flowId: FlowId,
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
-    : Future[Subscriptions.NakadiSource[T]] = {
+      : Future[Subscriptions.NakadiSource[T]] =
     eventsStreamedSource[T](
       subscriptionId,
       connectionClosedCallback,
@@ -1465,7 +1461,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
               streamConfig
             ))
       }
-  }
 
   /**
     * Closes the underlying http connection for a subscriptionId/streamId.
@@ -1474,7 +1469,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @return `true` If there was a reference to a connection (i.e. there was a stream running) or `false` if there was
     *        no reference. Note that cancelling the http connection will execute the [[eventsStreamed#connectionClosedCallback]]
     */
-  def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean = {
+  def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean =
     killSwitches.get((subscriptionId, streamId)) match {
       case Some(killSwitch) =>
         killSwitch.abort(CancelledByClient(subscriptionId, streamId))
@@ -1482,7 +1477,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       case None =>
         false
     }
-  }
 
   /**
     * exposes statistics of specified subscription
