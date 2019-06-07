@@ -517,6 +517,20 @@ reconnect after a minute. Note that when you are deploying a new instance of you
 more instances than partitions the above code will handle this situation (when the old instance will terminate
 and disconnect from the stream it will free up some slots, so the new instance will eventually reconnect)
 
+#### Automatically retrying sending of events
+
+Kanadi has a configuration option `kanadi.http-config.failed-publish-event-retry` which allows Kanadi to automatically
+resend events should they fail. The setting can also be set using the environment variable
+`KANADI_HTTP_CONFIG_FAILED_PUBLISH_EVENT_RETRY`. By default this setting is `false` since enabling this can cause
+events to be sent out of order, in other words you shouldn't enable it if you (or your consumers) rely on ordering
+of events. Kanadi will only resend the events which actually failed to send and it will refuse to send
+events which failed due to schema validation (since resending such events is pointless).
+
+Since Nakadi will only fail to publish an event in extreme circumstances (i.e. under heavy load) the retry
+uses an exponential backoff which can be configured with `kanadi.exponential-backoff-config` settings (see 
+`reference.conf` for information on the settings). If reach the maximum number of retries then `Events.publish`
+will fail with the original `Events.Errors.EventValidation` exception.
+
 #### Modifying the akka-stream source
 
 It is possible to modify the underlying akka stream when using `Subscriptions.eventsStreamed` or
