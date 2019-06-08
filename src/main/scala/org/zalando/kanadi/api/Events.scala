@@ -10,7 +10,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
 import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -25,8 +24,16 @@ import org.mdedetrich.webmodels.circe._
 import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
-sealed abstract class Event[T](val data: T)
+sealed abstract class Event[T](val data: T) {
+  def getMetadata: Option[Metadata] = this match {
+    case e: Event.DataChange[_] => Some(e.metadata)
+    case e: Event.Business[_]   => Some(e.metadata)
+    case _: Event.Undefined[_]  => None
+  }
+}
 
 object Event {
   final case class DataChange[T](override val data: T,
@@ -246,10 +253,12 @@ object Events {
   }
 }
 
-case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
-                                                                                         kanadiHttpConfig: HttpConfig,
-                                                                                         http: HttpExt,
-                                                                                         materializer: Materializer)
+case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
+    implicit
+    kanadiHttpConfig: HttpConfig,
+    exponentialBackoffConfig: ExponentialBackoffConfig,
+    http: HttpExt,
+    materializer: Materializer)
     extends EventsInterface {
   private val baseUri_                               = Uri(baseUri.toString)
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Events])
@@ -275,6 +284,81 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     * @return
     */
   def publish[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
+      implicit encoder: Encoder[T],
+      flowId: FlowId = randomFlowId(),
+      executionContext: ExecutionContext
+  ): Future[Unit] =
+    if (kanadiHttpConfig.failedPublishEventRetry) {
+      publishWithRecover(name, events, List.empty, fillMetadata, exponentialBackoffConfig.initialDelay, 0)
+    } else publishBase(name, events, fillMetadata)
+
+  private[api] def publishWithRecover[T](name: EventTypeName,
+                                         events: List[Event[T]],
+                                         currentNotValidEvents: List[Events.BatchItemResponse],
+                                         fillMetadata: Boolean,
+                                         currentDuration: FiniteDuration,
+                                         count: Int)(
+      implicit encoder: Encoder[T],
+      flowId: FlowId = randomFlowId(),
+      executionContext: ExecutionContext
+  ): Future[Unit] =
+    publishBase(name, events, fillMetadata).recoverWith {
+      case Events.Errors.EventValidation(errors) =>
+        if (count > exponentialBackoffConfig.maxRetries) {
+          val finalEvents =
+            (errors ++ currentNotValidEvents).filter(_.publishingStatus != Events.PublishingStatus.Submitted)
+          logger.error(
+            s"Max retry failed for publishing events, event id's still not submitted are ${finalEvents.flatMap(_.eid.map(_.id)).mkString(",")}")
+          Future.failed(Events.Errors.EventValidation(finalEvents))
+        } else {
+          val (notValid, retry) = errors.partition(
+            response =>
+              response.step
+                .contains(Events.Step.Validating) || response.publishingStatus == Events.PublishingStatus.Submitted)
+          val toRetry = events.filter { event =>
+            eventWithUndefinedEventIdFallback(event) match {
+              case Some(eid) => !retry.exists(_.eid.contains(eid))
+              case None      => false
+            }
+          }
+
+          val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
+
+          logger.warn(
+            s"Events with eid's ${retry.flatMap(_.eid).map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
+
+          val invalidSchemaEvents = notValid.filter(_.publishingStatus != Events.PublishingStatus.Submitted)
+
+          if (invalidSchemaEvents.nonEmpty)
+            logger.error(
+              s"Events ${notValid.flatMap(_.eid).map(_.id).mkString(",")} did not pass validation schema, not submitting")
+
+          val newNotValidEvents = (currentNotValidEvents ++ notValid).distinct
+
+          akka.pattern.after(newDuration, http.system.scheduler)(
+            publishWithRecover(name, toRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
+        }
+    }
+
+  /**
+    * If we have an event of type [[Event.Undefined]], this function will try and manually parse the event to see if
+    * it has an "eid" field. The "eid" field is not mandatory in [[Event.Undefined]] however there is a chance it can
+    * still be there.
+    *
+    * @param event
+    * @param encoder
+    * @tparam T
+    * @return
+    */
+  private[api] def eventWithUndefinedEventIdFallback[T](event: Event[T])(
+      implicit encoder: Encoder[T]): Option[EventId] =
+    event.getMetadata.map(_.eid) orElse {
+      (event.data.asJson \\ "eid").headOption.flatMap { json =>
+        json.as[EventId].toOption
+      }
+    }
+
+  private[api] def publishBase[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
       implicit encoder: Encoder[T],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
@@ -308,18 +392,16 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       _        = logger.debug(request.toString)
       response <- http.singleRequest(request)
       result <- {
-        if (response.status.isSuccess()) {
-          response.discardEntityBytes()
-          Future.successful(())
-        } else {
-          response.status match {
-            case StatusCodes.UnprocessableEntity =>
-              Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                .to[List[Events.BatchItemResponse]]
-                .map(x => throw Events.Errors.EventValidation(x))
-            case _ =>
-              processNotSuccessful(response)
-          }
+        response.status match {
+          case StatusCodes.UnprocessableEntity | StatusCodes.MultiStatus =>
+            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
+              .to[List[Events.BatchItemResponse]]
+              .map(x => throw Events.Errors.EventValidation(x))
+          case s if s.isSuccess() =>
+            response.discardEntityBytes()
+            Future.successful(())
+          case _ =>
+            processNotSuccessful(response)
         }
       }
     } yield result
