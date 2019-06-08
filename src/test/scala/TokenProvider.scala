@@ -3,9 +3,20 @@ import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
 import scala.concurrent.Future
 
 object TokenProvider {
-  private val token = (sys.props.get("TOKEN") orElse sys.env.get("TOKEN")).getOrElse(
-    throw new IllegalArgumentException("Expected token")
-  )
+  private def emptyStringToNone(string: String): Option[String] =
+    if (string.trim.isEmpty)
+      None
+    else
+      Some(string)
 
-  val environmentTokenProvider = Some(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
+  def getDataFromEnv(id: String): String =
+    sys.props
+      .get(id)
+      .flatMap(emptyStringToNone)
+      .orElse(sys.env.get(id).flatMap(emptyStringToNone))
+      .getOrElse(throw new IllegalArgumentException(s"Unable to get $id from the environment"))
+
+  private val token = getDataFromEnv("TOKEN")
+
+  lazy val environmentTokenProvider = Some(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
 }

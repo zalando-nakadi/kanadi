@@ -6,4 +6,5 @@ final case class HttpConfig(censorOAuth2Token: Boolean,
                             singleStringChunkLength: Int,
                             eventListChunkLength: Int,
                             noEmptySlotsCursorResetRetryDelay: FiniteDuration,
-                            serverDisconnectRetryDelay: FiniteDuration)
+                            serverDisconnectRetryDelay: FiniteDuration,
+                            failedPublishEventRetry: Boolean)
