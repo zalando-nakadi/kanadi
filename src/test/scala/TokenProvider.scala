@@ -16,7 +16,6 @@ object TokenProvider {
       .orElse(sys.env.get(id).flatMap(emptyStringToNone))
       .getOrElse(throw new IllegalArgumentException(s"Unable to get $id from the environment"))
 
-
   private val token = getDataFromEnv("TOKEN")
 
   lazy val environmentTokenProvider = Some(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
