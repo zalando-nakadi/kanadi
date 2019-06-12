@@ -1,11 +1,11 @@
 name := """kanadi"""
 
-val akkaHttpVersion        = "10.1.5"
+val akkaHttpVersion        = "10.1.8"
 val akkaStreamsJsonVersion = "0.2.0"
 val currentScalaVersion    = "2.11.12"
 val enumeratumCirceVersion = "1.5.12"
 val circeVersion           = "0.10.1"
-val akkaVersion            = "2.5.17"
+val akkaVersion            = "2.5.23"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
@@ -113,7 +113,11 @@ developers := List(
   Developer("mdedetrich", "Matthew de Detrich", "mdedetrich@gmail.com", url("https://github.com/mdedetrich")),
   Developer("xjrk58", "Jiri Syrovy", "jiri.syrovy@zalando.de", url("https://github.com/xjrk58")),
   Developer("itachi3", "Balaji Sonachalam", "balajispsg@gmail.com", url("https://github.com/itachi3")),
-  Developer("Deeds67", "Pierre Marais", "pierrem@live.co.za", url("https://github.com/Deeds67"))
+  Developer("Deeds67", "Pierre Marais", "pierrem@live.co.za", url("https://github.com/Deeds67")),
+  Developer("gouthampradhan",
+            "Goutham Vidya Pradhan",
+            "goutham.vidya.pradhan@gmail.com",
+            url("https://github.com/gouthampradhan"))
 )
 
 licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
