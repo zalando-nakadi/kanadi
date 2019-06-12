@@ -42,11 +42,19 @@ a year, including handling events from Zalando's main website search.
 
 ### Installation
 
+Kanadi is currently deployed to OSS Sonatype. For Circe 0.11.x use Kanadi 0.4.x
+
+```sbt
+libraryDependencies ++= Seq(
+    "org.zalando" %% "kanadi" % "0.4.1"
+)
+```
+
 Kanadi is currently deployed to OSS Sonatype. For Circe 0.10.x use Kanadi 0.3.x
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.3.4"
+    "org.zalando" %% "kanadi" % "0.3.6"
 )
 ```
 
@@ -54,7 +62,7 @@ Otherwise if you need a Kanadi built against Circe 0.9.x use Kanadi 0.2.x
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.2.7"
+    "org.zalando" %% "kanadi" % "0.2.8"
 )
 ```
 
