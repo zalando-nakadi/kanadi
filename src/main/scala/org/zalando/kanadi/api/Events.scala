@@ -329,9 +329,16 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
 
           val invalidSchemaEvents = notValid.filter(_.publishingStatus != Events.PublishingStatus.Submitted)
 
-          if (invalidSchemaEvents.nonEmpty)
-            logger.error(
-              s"Events ${notValid.flatMap(_.eid).map(_.id).mkString(",")} did not pass validation schema, not submitting")
+          if (invalidSchemaEvents.nonEmpty) {
+            val errorDetails = invalidSchemaEvents
+              .map { response =>
+                val detail  = response.detail
+                val eventId = response.eid.map(_.id)
+                s"eid: ${eventId.getOrElse("N/A")}, detail: ${detail.getOrElse("N/A")}"
+              }
+              .mkString(",")
+            logger.error(s"Events $errorDetails did not pass validation schema, not submitting")
+          }
 
           val newNotValidEvents = (currentNotValidEvents ++ notValid).distinct
 

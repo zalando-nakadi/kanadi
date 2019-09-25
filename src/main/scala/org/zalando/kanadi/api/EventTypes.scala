@@ -399,6 +399,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
                 }
       entity   <- Marshal(eventType).to[RequestEntity]
       request  = HttpRequest(HttpMethods.POST, uri, headers, entity)
+      _        = logger.debug(request.toString)
       response <- http.singleRequest(request)
       result <- {
         if (response.status.isSuccess()) {
