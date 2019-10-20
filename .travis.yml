@@ -1,6 +1,7 @@
 language: scala
 
 sudo: required
+dist: trusty
 
 env:
   - DOCKER_COMPOSE_VERSION=1.21.1
