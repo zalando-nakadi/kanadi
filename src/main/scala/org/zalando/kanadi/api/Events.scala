@@ -345,6 +345,23 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
           akka.pattern.after(newDuration, http.system.scheduler)(
             publishWithRecover(name, toRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
         }
+      case e: RuntimeException
+          if e.getMessage.contains(
+            "The http server closed the connection unexpectedly before delivering responses for") =>
+        val eventIds = events.flatMap(x => eventWithUndefinedEventIdFallback(x))
+        if (count > exponentialBackoffConfig.maxRetries) {
+          logger.error(
+            s"Max retry failed for publishing events, event id's still not submitted are ${eventIds.mkString(",")}")
+          Future.failed(e)
+        } else {
+          val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
+
+          logger.warn(
+            s"Events with eid's ${eventIds.mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
+
+          akka.pattern.after(newDuration, http.system.scheduler)(
+            publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))
+        }
     }
 
   /**
