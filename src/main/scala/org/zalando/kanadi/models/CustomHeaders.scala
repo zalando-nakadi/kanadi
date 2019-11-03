@@ -4,5 +4,5 @@ import akka.http.scaladsl.model.headers.RawHeader
 
 final case class CustomHeaders(headers: Map[String, String]) extends AnyVal {
   def toRawHeaders: List[RawHeader] =
-    headers.to[List].map { case (k, v) => RawHeader(k, v) }
+    headers.toList.map { case (k, v) => RawHeader(k, v) }
 }

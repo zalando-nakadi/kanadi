@@ -1,3 +1,5 @@
+package org.zalando.kanadi
+
 import java.util.UUID
 
 import io.circe.{Decoder, Encoder}

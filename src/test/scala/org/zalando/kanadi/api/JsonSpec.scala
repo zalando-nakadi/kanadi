@@ -1,3 +1,6 @@
+package org.zalando.kanadi
+package api
+
 import java.util.UUID
 
 import cats.syntax.either._
@@ -7,10 +10,7 @@ import org.specs2.specification.core.SpecStructure
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import io.circe.java8.time._
-import org.zalando.kanadi.api.Event
-import org.zalando.kanadi.api.DataOperation
-import org.zalando.kanadi.api.Metadata
+import CrossVersionImports._
 import org.zalando.kanadi.models.{EventId, SpanCtx}
 import java.time.OffsetDateTime
 

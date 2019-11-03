@@ -1,3 +1,5 @@
+package org.zalando.kanadi
+
 import java.util.UUID
 
 import akka.actor.ActorSystem
@@ -10,13 +12,12 @@ import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.Config
 import org.zalando.kanadi.api.Subscriptions.defaultEventStreamSupervisionDecider
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
-import scala.concurrent.duration._
 import scala.concurrent.Promise
+import scala.concurrent.duration._
 import scala.util.Success
 
 class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
