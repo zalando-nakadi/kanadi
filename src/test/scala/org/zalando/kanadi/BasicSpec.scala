@@ -1,49 +1,37 @@
+package org.zalando.kanadi
+
 import java.util.UUID
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.{ActorMaterializer, Supervision}
+import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import io.circe.{Decoder, Encoder}
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.Config
-import org.zalando.kanadi.api.Subscriptions.{ConnectionClosedCallback, EventCallback, EventStreamContext}
+import org.zalando.kanadi.api.Subscriptions.{
+  ConnectionClosedCallback,
+  EventCallback,
+  defaultEventStreamSupervisionDecider
+}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
-import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-final case class SomeBadEvent(firstName: String, lastName: Int, uuid: UUID)
-
-object SomeBadEvent {
-  implicit val someBadEventEncoder: Encoder[SomeBadEvent] =
-    Encoder.forProduct3(
-      "first_name",
-      "last_name",
-      "uuid"
-    )(x => SomeBadEvent.unapply(x).get)
-  implicit val someBadEventDecoder: Decoder[SomeBadEvent] =
-    Decoder.forProduct3(
-      "first_name",
-      "last_name",
-      "uuid"
-    )(SomeBadEvent.apply)
-}
-
-class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
+class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
   override def is: SpecStructure = sequential ^ s2"""
-    This test handles when a decoder fails to parse some JSON
     Create Event Type          $createEventType
     Create Subscription events $createSubscription
-    Start streaming bad events $startStreamBadEvents
-    Publish good events        $publishGoodEvents
-    Receive bad event          $receiveBadEvent
+    Start streaming            $startStreaming
+    Publish events             $publishEvents
+    Receive events             $receiveEvents
+    Get Subscription stats     $getSubscriptionStats
     Close connection           $closeConnection
     Delete subscription        $deleteSubscription
     Delete event type          $deleteEventType
@@ -72,8 +60,6 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     EventTypes(nakadiUri, None)
 
   def createEventType = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
@@ -82,9 +68,10 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
   val currentStreamId: Promise[StreamId]             = Promise()
   var events: Option[List[SomeEvent]]                = None
-  val receivedBadEvent: Promise[Unit]                = Promise()
-  var subscriptionClosed: Boolean                    = false
-  val streamComplete: Promise[Boolean]               = Promise()
+  val eventCounter                                   = new AtomicInteger(0)
+  val subscriptionClosed: AtomicBoolean              = new AtomicBoolean(false)
+  val modifySourceFunctionActivated: AtomicBoolean   = new AtomicBoolean(false)
+  val streamComplete: Promise[Unit]                  = Promise()
 
   def createSubscription = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()
@@ -105,59 +92,12 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     }
 
     future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 3 seconds)
+      .await(0, timeout = 5 seconds)
   }
 
-  implicit val mySupervisionDecider =
-    Subscriptions.EventStreamSupervisionDecider { eventStreamContext: EventStreamContext =>
-      {
-        case parsingException: Subscriptions.EventJsonParsingException =>
-          eventStreamContext.subscriptionsClient.commitCursors(
-            eventStreamContext.subscriptionId,
-            SubscriptionCursor(List(parsingException.subscriptionEventInfo.cursor)),
-            eventStreamContext.streamId)
-
-          receivedBadEvent.complete(Success(()))
-          Supervision.Resume
-        case _ => Supervision.Stop
-      }
-    }
-
-  def startStreamBadEvents = (name: String) => {
+  def publishEvents = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()
     flowId.pp(name)
-    def stream =
-      for {
-        subscriptionId <- currentSubscriptionId.future
-        stream <- subscriptionsClient.eventsStreamedManaged[SomeBadEvent](
-                   subscriptionId,
-                   EventCallback.successAlways { eventCallbackData =>
-                     eventCallbackData.subscriptionEvent.events
-                       .getOrElse(List.empty)
-                       .foreach { _ =>
-                         ()
-                       }
-                   },
-                   ConnectionClosedCallback { connectionClosedData =>
-                     // Connection will be already closed
-                     subscriptionClosed = true
-                   }
-                 )
-      } yield stream
-
-    stream.onComplete {
-      case scala.util.Success(streamId) =>
-        streamId.pp
-        currentStreamId.complete(Success(streamId))
-      case _ =>
-    }
-
-    currentStreamId.future.map(_ => ()) must be_==(())
-      .await(0, timeout = 4 minutes)
-
-  }
-
-  def publishGoodEvents = (name: String) => {
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
@@ -175,8 +115,65 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
-  def receiveBadEvent = (name: String) => {
-    receivedBadEvent.future must be_==(()).await(0, timeout = 5 minutes)
+  def startStreaming = (name: String) => {
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    flowId.pp(name)
+    def stream =
+      for {
+        subscriptionId <- currentSubscriptionId.future
+        stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
+                   subscriptionId,
+                   EventCallback.successAlways { eventCallbackData =>
+                     eventCallbackData.subscriptionEvent.events
+                       .getOrElse(List.empty)
+                       .foreach {
+                         case e: Event.Business[SomeEvent] =>
+                           if (events.get.contains(e.data)) {
+                             eventCounter.addAndGet(1)
+                           }
+                           if (eventCounter.get() == 2)
+                             streamComplete.complete(Success(()))
+                         case _ =>
+                       }
+                   },
+                   ConnectionClosedCallback { connectionClosedData =>
+                     if (connectionClosedData.cancelledByClient)
+                       subscriptionClosed.set(true)
+                   },
+                   Subscriptions.StreamConfig(),
+                   Some { source =>
+                     modifySourceFunctionActivated.set(true)
+                     source
+                   }
+                 )
+      } yield stream
+
+    stream.onComplete {
+      case scala.util.Success(streamId) =>
+        streamId.pp
+        currentStreamId.complete(Success(streamId))
+      case _ =>
+    }
+
+    currentStreamId.future.map(_ => ()) must be_==(())
+      .await(0, timeout = 4 minutes)
+
+  }
+
+  def receiveEvents = (name: String) => {
+    streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
+  }
+
+  def getSubscriptionStats = (name: String) => {
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    flowId.pp(name)
+
+    val statsPresent = for {
+      subscriptionId <- currentSubscriptionId.future
+      stats          <- subscriptionsClient.stats(subscriptionId)
+    } yield stats.isDefined
+
+    statsPresent must be_==(true).await(retries = 3, timeout = 10 seconds)
   }
 
   def closeConnection = (name: String) => {
@@ -188,14 +185,15 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(6 seconds, system.scheduler)(Future.successful(subscriptionClosed))
+      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
 
     val future = for {
-      closed       <- closedFuture
-      waitForClose <- waitForCloseFuture
-    } yield (closed | waitForClose) // either connection has been closed earlier or from our client side
+      closed                <- closedFuture
+      waitForClose          <- waitForCloseFuture
+      modifySourceActivated = modifySourceFunctionActivated.get()
+    } yield (closed, waitForClose, modifySourceActivated)
 
-    future must be_==(true).await(0, timeout = 1 minute)
+    future must be_==((true, true, true)).await(0, timeout = 1 minute)
   }
 
   def deleteSubscription = (name: String) => {
@@ -203,8 +201,8 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     flowId.pp(name)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
-      _              <- subscriptionsClient.delete(subscriptionId)
-    } yield ()
+      delete         <- subscriptionsClient.delete(subscriptionId)
+    } yield delete
 
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }

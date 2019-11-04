@@ -1,3 +1,5 @@
+package org.zalando.kanadi
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
@@ -9,12 +11,11 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.execute.Skipped
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.Config
 import org.zalando.kanadi.api.{Events, Subscriptions}
 import org.zalando.kanadi.models._
 
-import concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class OAuthFailedSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
 

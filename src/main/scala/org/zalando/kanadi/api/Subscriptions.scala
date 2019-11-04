@@ -19,7 +19,7 @@ import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
-import io.circe.java8.time._
+import CrossVersionImports._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.syntax._
 import org.zalando.kanadi.api.defaults._
@@ -955,7 +955,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                     string
                       .grouped(kanadiHttpConfig.singleStringChunkLength)
                       .map(ByteString(_))
-                      .to[List])
+                      .toList)
                     .via(Framing.delimiter(ByteString("\n"), Int.MaxValue, allowTruncation = true))
                     .via(combinedJsonParserGraph)
                     .map {
@@ -965,7 +965,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                     .limit(kanadiHttpConfig.eventListChunkLength.toLong)
                     .runWith(Sink.seq)
                 }
-              } yield result.to[List]
+              } yield result.toList
             } else {
               processNotSuccessful(response)
             }

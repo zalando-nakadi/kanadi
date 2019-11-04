@@ -1,12 +1,11 @@
+package org.zalando.kanadi
+
 import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
-import io.circe.JsonObject
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
@@ -17,14 +16,15 @@ import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util._
+import scala.util.Success
 
-class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
+class AuthorizationSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
   override def is: SpecStructure = sequential ^ s2"""
     Create Event Type          $createEventType
-    Create Subscription events $createSubscription
-    Stream subscription        $streamSubscriptionId
-  """
+    Get Event Type             $getEventType
+    Create subscription        $createSubscription
+    Get subscription           $getSubscription
+    """
 
   val config = ConfigFactory.load()
 
@@ -48,28 +48,46 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
 
-  val currentSubscriptionId: Promise[SubscriptionId]                             = Promise()
-  val successfullyParsedBadCommitResponse: Promise[Option[CommitCursorResponse]] = Promise()
+  val currentSubscriptionId: Promise[SubscriptionId] = Promise()
+
+  val authorization = EventTypeAuthorization(
+    List(AuthorizationAttribute("user", "adminClientId")),
+    List(AuthorizationAttribute("user", "adminClientId")),
+    List(AuthorizationAttribute("user", "adminClientId"))
+  )
+
+  val subscriptionAuthorization = SubscriptionAuthorization(
+    List(AuthorizationAttribute("user", "adminClientId")),
+    List(AuthorizationAttribute("user", "adminClientId"))
+  )
 
   def createEventType = (name: String) => {
-    val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
+    val future = eventsTypesClient.create(
+      EventType(name = eventTypeName,
+                owningApplication = OwningApplication,
+                category = Category.Business,
+                authorization = Some(authorization)))
 
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
+  def getEventType = (name: String) => {
+    val future = eventsTypesClient.get(eventTypeName).map(_.flatMap(_.authorization))
+    future must beSome(authorization).await(retries = 3, timeout = 10 seconds)
+  }
+
   def createSubscription = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
-        None,
-        OwningApplication,
-        Some(List(eventTypeName)),
-        Some(consumerGroup)
+        id = None,
+        owningApplication = OwningApplication,
+        eventTypes = Some(List(eventTypeName)),
+        consumerGroup = Some(consumerGroup),
+        authorization = Some(subscriptionAuthorization)
       ))
 
     future.onComplete {
-      case Success(subscription) =>
+      case scala.util.Success(subscription) =>
         subscription.id.pp
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
@@ -79,30 +97,13 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
       .await(0, timeout = 5 seconds)
   }
 
-  def streamSubscriptionId = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
-
+  def getSubscription = (name: String) => {
     val future = for {
       subscriptionId <- currentSubscriptionId.future
-      _ = subscriptionsClient.eventsStreamedSource[JsonObject](subscriptionId).map { nakadiSource =>
-        nakadiSource.source
-          .map { subscriptionEvent =>
-            subscriptionsClient
-              .commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), nakadiSource.streamId)
-              .onComplete {
-                case Success(response) =>
-                  successfullyParsedBadCommitResponse.complete(Success(response))
-                case Failure(e) =>
-                  successfullyParsedBadCommitResponse.complete(Failure(e))
-              }
+      subscription   <- subscriptionsClient.get(subscriptionId)
+    } yield subscription.flatMap(_.authorization)
 
-          }
-          .runWith(Sink.foreach(_ => ()))
-      }
-      result <- successfullyParsedBadCommitResponse.future
-    } yield result
-
-    future must beSome.await(0, timeout = 2 minutes)
+    future must beSome(subscriptionAuthorization).await(retries = 3, timeout = 10 seconds)
   }
+
 }

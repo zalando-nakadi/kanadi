@@ -1,3 +1,5 @@
+package org.zalando.kanadi
+
 import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
 
 import scala.concurrent.Future
