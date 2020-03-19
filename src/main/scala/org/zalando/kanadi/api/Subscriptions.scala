@@ -451,13 +451,16 @@ object Subscriptions {
     * @param batchFlushTimeout Maximum time in seconds to wait for the flushing of each chunk (per partition). If the amount of buffered Events reaches batchLimit before this batchFlushTimeout is reached, the messages are immediately flushed to the client and batch flush timer is reset. If 0 or undefined, will assume 30 seconds.
     * @param streamTimeout Maximum time in seconds a stream will live before connection is closed by the server. If 0 or unspecified will stream indefinitely. If this timeout is reached, any pending messages (in the sense of stream_limit) will be flushed to the client. Stream initialization will fail if streamTimeout is lower than batchFlushTimeout.
     * @param streamKeepAliveLimit Maximum number of empty keep alive batches to get in a row before closing the connection. If 0 or undefined will send keep alive messages indefinitely.
+    * @param commitTimeout Maximum amount of seconds that nakadi will be waiting for commit after sending a batch to a client. Setting commit_timeout to 0 is equal to setting it to the maximum allowed value - 60 seconds.
     */
   final case class StreamConfig(maxUncommittedEvents: Option[Int] = None,
                                 batchLimit: Option[Int] = None,
                                 streamLimit: Option[Int] = None,
                                 batchFlushTimeout: Option[FiniteDuration] = None,
                                 streamTimeout: Option[FiniteDuration] = None,
-                                streamKeepAliveLimit: Option[Int] = None)
+                                streamKeepAliveLimit: Option[Int] = None,
+                                commitTimeout: Option[FiniteDuration] = None
+                               )
 
   /**
     * Nakadi stream represented as an akka-stream [[Source]]
@@ -993,8 +996,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             "stream_limit"           -> streamConfig.streamLimit.map(_.toString),
             "batch_flush_timeout"    -> streamConfig.batchFlushTimeout.map(_.toSeconds.toString),
             "stream_timeout"         -> streamConfig.streamTimeout.map(_.toSeconds.toString),
-            "stream_keep_alive_limit" -> streamConfig.streamKeepAliveLimit
-              .map(_.toString)
+            "stream_keep_alive_limit" -> streamConfig.streamKeepAliveLimit.map(_.toString),
+            "commit_timeout"         -> streamConfig.commitTimeout.map(_.toSeconds.toString)
           ).collect {
             case (k, Some(v)) => (k, v)
           })
