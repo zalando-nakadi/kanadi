@@ -459,8 +459,7 @@ object Subscriptions {
                                 batchFlushTimeout: Option[FiniteDuration] = None,
                                 streamTimeout: Option[FiniteDuration] = None,
                                 streamKeepAliveLimit: Option[Int] = None,
-                                commitTimeout: Option[FiniteDuration] = None
-                               )
+                                commitTimeout: Option[FiniteDuration] = None)
 
   /**
     * Nakadi stream represented as an akka-stream [[Source]]
@@ -991,13 +990,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .withQuery(
         Query(
           Map(
-            "max_uncommitted_events" -> streamConfig.maxUncommittedEvents.map(_.toString),
-            "batch_limit"            -> streamConfig.batchLimit.map(_.toString),
-            "stream_limit"           -> streamConfig.streamLimit.map(_.toString),
-            "batch_flush_timeout"    -> streamConfig.batchFlushTimeout.map(_.toSeconds.toString),
-            "stream_timeout"         -> streamConfig.streamTimeout.map(_.toSeconds.toString),
+            "max_uncommitted_events"  -> streamConfig.maxUncommittedEvents.map(_.toString),
+            "batch_limit"             -> streamConfig.batchLimit.map(_.toString),
+            "stream_limit"            -> streamConfig.streamLimit.map(_.toString),
+            "batch_flush_timeout"     -> streamConfig.batchFlushTimeout.map(_.toSeconds.toString),
+            "stream_timeout"          -> streamConfig.streamTimeout.map(_.toSeconds.toString),
             "stream_keep_alive_limit" -> streamConfig.streamKeepAliveLimit.map(_.toString),
-            "commit_timeout"         -> streamConfig.commitTimeout.map(_.toSeconds.toString)
+            "commit_timeout"          -> streamConfig.commitTimeout.map(_.toSeconds.toString)
           ).collect {
             case (k, Some(v)) => (k, v)
           })
