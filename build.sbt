@@ -1,9 +1,9 @@
 name := """kanadi"""
 
-val akkaHttpVersion                          = "10.1.9"
+val akkaHttpVersion                          = "10.1.11"
 val akkaStreamsJsonLatestVersion             = "0.4.0"
 val akkaStreamsJsonOldVersion                = "0.3.0"
-val currentScalaVersion                      = "2.12.10"
+val currentScalaVersion                      = "2.12.11"
 val scala213Version                          = "2.13.1"
 val enumeratumCirceLatestVersion             = "1.5.22"
 val enumeratumCirceOldVersion                = "1.5.20"
@@ -125,7 +125,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka"          %% "akka-stream"         % akkaVersion,
     "org.mdedetrich"             %% "censored-raw-header" % "0.4.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.6.0",
+    "org.mdedetrich"             %% "webmodels"           % "0.7.0",
     "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion(scalaVersion.value),
     "io.circe"                   %% "circe-parser"        % circeVersion(scalaVersion.value),
     "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion(scalaVersion.value),
