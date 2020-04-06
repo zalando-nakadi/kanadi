@@ -76,8 +76,8 @@ package object api {
       json.as[Problem] match {
         case Left(_) =>
           json.as[BasicServerError] match {
-            case Left(error) =>
-              throw error
+            case Left(_) =>
+              throw new HttpServiceError(request, response)
             case Right(basicServerError) =>
               throw OtherError(basicServerError)
           }
