@@ -66,8 +66,9 @@ package object api {
       MDC.remove("flow_id")
   }
 
-  def processNotSuccessful(response: HttpResponse)(implicit materializer: Materializer,
-                                                   executionContext: ExecutionContext): Future[Nothing] =
+  def processNotSuccessful(request: HttpRequest, response: HttpResponse)(
+      implicit materializer: Materializer,
+      executionContext: ExecutionContext): Future[Nothing] =
     for {
       json <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                .to[Json]
@@ -80,7 +81,7 @@ package object api {
             case Right(basicServerError) =>
               throw OtherError(basicServerError)
           }
-        case Right(problem) => throw new GeneralError(problem)
+        case Right(problem) => throw new GeneralError(problem, request, response)
       }
     }
 }

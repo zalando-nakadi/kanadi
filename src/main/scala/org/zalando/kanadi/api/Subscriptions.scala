@@ -201,11 +201,20 @@ object CommitCursorResponse {
 
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
-  sealed abstract class Errors(problem: Problem) extends GeneralError(problem)
+  sealed abstract class Errors(override val problem: Problem,
+                               override val httpRequest: HttpRequest,
+                               override val httpResponse: HttpResponse)
+      extends GeneralError(problem, httpRequest, httpResponse)
 
   object Errors {
-    final case class NoEmptySlotsOrCursorReset(override val problem: Problem) extends Errors(problem)
-    final case class SubscriptionNotFound(override val problem: Problem)      extends Errors(problem)
+    final case class NoEmptySlotsOrCursorReset(override val problem: Problem,
+                                               override val httpRequest: HttpRequest,
+                                               override val httpResponse: HttpResponse)
+        extends Errors(problem, httpRequest, httpResponse)
+    final case class SubscriptionNotFound(override val problem: Problem,
+                                          override val httpRequest: HttpRequest,
+                                          override val httpResponse: HttpResponse)
+        extends Errors(problem, httpRequest, httpResponse)
   }
 
   final case class EventJsonParsingException(subscriptionEventInfo: SubscriptionEventInfo,
@@ -517,7 +526,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[Subscription]
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -608,7 +617,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             .to[SubscriptionQuery]
         } else {
           response.status match {
-            case _ => processNotSuccessful(response)
+            case _ => processNotSuccessful(request, response)
           }
         }
       }
@@ -648,7 +657,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             .to[Subscription]
             .map(Some.apply)
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -683,7 +692,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           response.discardEntityBytes()
           Future.successful(())
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -721,7 +730,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
               .to[SubscriptionCursor]
               .map(x => Some(x))
-          case _ => processNotSuccessful(response)
+          case _ => processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -778,7 +787,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
               Some(commitCursorsResponse)
             }
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -819,7 +828,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           response.discardEntityBytes()
           Future.successful(true)
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -942,11 +951,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           case StatusCodes.NotFound =>
             Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
               .to[Problem]
-              .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x))
+              .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x, request, response))
           case StatusCodes.Conflict =>
             Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
               .to[Problem]
-              .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x))
+              .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x, request, response))
           case _ =>
             if (response.status.isSuccess()) {
               for {
@@ -969,7 +978,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                 }
               } yield result.toList
             } else {
-              processNotSuccessful(response)
+              processNotSuccessful(request, response)
             }
         }
       }
@@ -1128,13 +1137,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             case StatusCodes.NotFound =>
               Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                 .to[Problem]
-                .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x))
+                .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x, request, response))
             case StatusCodes.Conflict =>
               Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                 .to[Problem]
-                .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x))
+                .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x, request, response))
             case _ =>
-              processNotSuccessful(response)
+              processNotSuccessful(request, response)
           }
         }
       }
@@ -1430,7 +1439,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         streamId
       }
       .recoverWith {
-        case Subscriptions.Errors.NoEmptySlotsOrCursorReset(_) =>
+        case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
           logger.info(
             s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
               .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
@@ -1460,7 +1469,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         nakadiSource
       }
       .recoverWith {
-        case Subscriptions.Errors.NoEmptySlotsOrCursorReset(_) =>
+        case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
           logger.info(
             s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
               .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
@@ -1521,7 +1530,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             .to[SubscriptionStats]
             .map(x => Some(x))
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result

@@ -52,7 +52,7 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[String]]
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -93,7 +93,7 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[PartitionStrategy]]
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
