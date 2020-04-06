@@ -201,20 +201,16 @@ object CommitCursorResponse {
 
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
-  sealed abstract class Errors(override val problem: Problem,
-                               override val httpRequest: HttpRequest,
-                               override val httpResponse: HttpResponse)
-      extends GeneralError(problem, httpRequest, httpResponse)
+  sealed abstract class Errors(override val httpRequest: HttpRequest, override val httpResponse: HttpResponse)
+      extends HttpServiceError(httpRequest, httpResponse)
 
   object Errors {
-    final case class NoEmptySlotsOrCursorReset(override val problem: Problem,
-                                               override val httpRequest: HttpRequest,
+    final case class NoEmptySlotsOrCursorReset(override val httpRequest: HttpRequest,
                                                override val httpResponse: HttpResponse)
-        extends Errors(problem, httpRequest, httpResponse)
-    final case class SubscriptionNotFound(override val problem: Problem,
-                                          override val httpRequest: HttpRequest,
+        extends Errors(httpRequest, httpResponse)
+    final case class SubscriptionNotFound(override val httpRequest: HttpRequest,
                                           override val httpResponse: HttpResponse)
-        extends Errors(problem, httpRequest, httpResponse)
+        extends Errors(httpRequest, httpResponse)
   }
 
   final case class EventJsonParsingException(subscriptionEventInfo: SubscriptionEventInfo,
@@ -943,13 +939,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       result <- {
         response.status match {
           case StatusCodes.NotFound =>
-            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-              .to[Problem]
-              .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x, request, response))
+            response.discardEntityBytes()
+            throw Subscriptions.Errors.SubscriptionNotFound(request, response)
           case StatusCodes.Conflict =>
-            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-              .to[Problem]
-              .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x, request, response))
+            response.discardEntityBytes()
+            throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response)
           case _ =>
             if (response.status.isSuccess()) {
               for {
@@ -1128,13 +1122,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         } else
           response.status match {
             case StatusCodes.NotFound =>
-              Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                .to[Problem]
-                .map(x => throw Subscriptions.Errors.SubscriptionNotFound(x, request, response))
+              response.discardEntityBytes()
+              throw Subscriptions.Errors.SubscriptionNotFound(request, response)
             case StatusCodes.Conflict =>
-              Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                .to[Problem]
-                .map(x => throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(x, request, response))
+              response.discardEntityBytes()
+              throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response)
             case _ =>
               processNotSuccessful(request, response)
           }
