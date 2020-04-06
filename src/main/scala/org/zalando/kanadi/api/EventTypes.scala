@@ -357,7 +357,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[EventType]]
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -406,7 +406,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           response.discardEntityBytes()
           Future.successful(())
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -445,7 +445,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
             .to[EventType]
             .map(Some.apply)
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -482,7 +482,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           response.discardEntityBytes()
           Future.successful(())
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result
@@ -521,7 +521,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           response.discardEntityBytes()
           Future.successful(())
         } else {
-          processNotSuccessful(response)
+          processNotSuccessful(request, response)
         }
       }
     } yield result

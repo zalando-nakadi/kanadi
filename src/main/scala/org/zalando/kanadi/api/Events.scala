@@ -301,7 +301,27 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       implicit encoder: Encoder[T],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
-  ): Future[Unit] =
+  ): Future[Unit] = {
+    def retryUnexpectedFailure(events: List[Event[T]],
+                               count: Int,
+                               e: Exception,
+                               currentDuration: FiniteDuration): Future[Unit] = {
+      val eventIds = events.flatMap(x => eventWithUndefinedEventIdFallback(x))
+      if (count > exponentialBackoffConfig.maxRetries) {
+        logger.error(
+          s"Max retry failed for publishing events, event id's still not submitted are ${eventIds.mkString(",")}")
+        Future.failed(e)
+      } else {
+        val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
+
+        logger.warn(
+          s"Events with eid's ${eventIds.mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
+
+        akka.pattern.after(newDuration, http.system.scheduler)(
+          publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))
+      }
+    }
+
     publishBase(name, events, fillMetadata).recoverWith {
       case Events.Errors.EventValidation(errors) =>
         if (count > exponentialBackoffConfig.maxRetries) {
@@ -348,21 +368,12 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       case e: RuntimeException
           if e.getMessage.contains(
             "The http server closed the connection unexpectedly before delivering responses for") =>
-        val eventIds = events.flatMap(x => eventWithUndefinedEventIdFallback(x))
-        if (count > exponentialBackoffConfig.maxRetries) {
-          logger.error(
-            s"Max retry failed for publishing events, event id's still not submitted are ${eventIds.mkString(",")}")
-          Future.failed(e)
-        } else {
-          val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
-
-          logger.warn(
-            s"Events with eid's ${eventIds.mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
-
-          akka.pattern.after(newDuration, http.system.scheduler)(
-            publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))
-        }
+        retryUnexpectedFailure(events, count, e, currentDuration)
+      case httpServiceError: HttpServiceError
+          if httpServiceError.httpResponse.status.intValue().toString.startsWith("5") =>
+        retryUnexpectedFailure(events, count, httpServiceError, currentDuration)
     }
+  }
 
   /**
     * If we have an event of type [[Event.Undefined]], this function will try and manually parse the event to see if
@@ -425,7 +436,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
             response.discardEntityBytes()
             Future.successful(())
           case _ =>
-            processNotSuccessful(response)
+            processNotSuccessful(request, response)
         }
       }
     } yield result
