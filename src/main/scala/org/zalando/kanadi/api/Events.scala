@@ -137,10 +137,10 @@ sealed abstract class DataOperation(val id: String) extends EnumEntry with Produ
 
 object DataOperation extends Enum[DataOperation] {
   val values = findValues
-  case object Create   extends DataOperation("C")
-  case object Update   extends DataOperation("U")
-  case object Delete   extends DataOperation("D")
-  case object Snapshot extends DataOperation("S")
+  final case object Create   extends DataOperation("C")
+  final case object Update   extends DataOperation("U")
+  final case object Delete   extends DataOperation("D")
+  final case object Snapshot extends DataOperation("S")
 
   implicit val dataOperationEncoder: Encoder[DataOperation] =
     enumeratum.Circe.encoder(DataOperation)
@@ -215,9 +215,9 @@ object Events {
 
   object PublishingStatus extends Enum[PublishingStatus] {
     val values = findValues
-    case object Submitted extends PublishingStatus("submitted")
-    case object Failed    extends PublishingStatus("failed")
-    case object Aborted   extends PublishingStatus("aborted")
+    final case object Submitted extends PublishingStatus("submitted")
+    final case object Failed    extends PublishingStatus("failed")
+    final case object Aborted   extends PublishingStatus("aborted")
 
     implicit val eventsErrorsPublishingStatusEncoder: Encoder[PublishingStatus] =
       enumeratum.Circe.encoder(PublishingStatus)
@@ -231,11 +231,11 @@ object Events {
 
   object Step extends Enum[Step] {
     val values = findValues
-    case object None         extends Step("none")
-    case object Validating   extends Step("validating")
-    case object Partitioning extends Step("partitioning")
-    case object Enriching    extends Step("enriching")
-    case object Publishing   extends Step("publishing")
+    final case object None         extends Step("none")
+    final case object Validating   extends Step("validating")
+    final case object Partitioning extends Step("partitioning")
+    final case object Enriching    extends Step("enriching")
+    final case object Publishing   extends Step("publishing")
 
     implicit val eventsErrorsStepEncoder: Encoder[Step] =
       enumeratum.Circe.encoder(Step)
@@ -289,7 +289,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       executionContext: ExecutionContext
   ): Future[Unit] =
     if (kanadiHttpConfig.failedPublishEventRetry) {
-      publishWithRecover(name, events, List.empty, fillMetadata, exponentialBackoffConfig.initialDelay, 0)
+      publishWithRecover(name, events, List.empty, fillMetadata, exponentialBackoffConfig.initialDelay, count = 0)
     } else publishBase(name, events, fillMetadata)
 
   private[api] def publishWithRecover[T](name: EventTypeName,
@@ -309,13 +309,13 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
       val eventIds = events.flatMap(x => eventWithUndefinedEventIdFallback(x))
       if (count > exponentialBackoffConfig.maxRetries) {
         logger.error(
-          s"Max retry failed for publishing events, event id's still not submitted are ${eventIds.mkString(",")}")
+          s"Max retry failed for publishing events, event id's still not submitted are ${eventIds.map(_.id).mkString(",")}")
         Future.failed(e)
       } else {
         val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
 
         logger.warn(
-          s"Events with eid's ${eventIds.mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
+          s"Events with eid's ${eventIds.map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
 
         akka.pattern.after(newDuration, http.system.scheduler)(
           publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))

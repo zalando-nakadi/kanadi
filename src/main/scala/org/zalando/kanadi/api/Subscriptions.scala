@@ -254,9 +254,9 @@ object Subscriptions {
       object State extends Enum[State] {
         val values = findValues
 
-        case object Unassigned  extends State("unassigned")
-        case object Reassigning extends State("reassigning")
-        case object Assigned    extends State("assigned")
+        final case object Unassigned  extends State("unassigned")
+        final case object Reassigning extends State("reassigning")
+        final case object Assigned    extends State("assigned")
 
         implicit val subscriptionsEventTypeStatsPartitionStateEncoder: Encoder[State] = enumeratum.Circe.encoder(State)
         implicit val subscriptionsEventTypeStatsPartitionStateDecoder: Decoder[State] = enumeratum.Circe.decoder(State)
@@ -269,8 +269,8 @@ object Subscriptions {
       object AssignmentType extends Enum[AssignmentType] {
         val values = findValues
 
-        case object Direct extends AssignmentType("direct")
-        case object Auto   extends AssignmentType("auto")
+        final case object Direct extends AssignmentType("direct")
+        final case object Auto   extends AssignmentType("auto")
 
         implicit val subscriptionsEventTypeStatsPartitionAssignmentTypeEncoder: Encoder[AssignmentType] =
           enumeratum.Circe.encoder(AssignmentType)
@@ -525,9 +525,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[Subscription]
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -615,11 +614,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[SubscriptionQuery]
-        } else {
+        } else
           response.status match {
             case _ => processNotSuccessful(request, response)
           }
-        }
       }
     } yield result
   }
@@ -656,9 +654,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[Subscription]
             .map(Some.apply)
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -691,9 +688,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         if (response.status.isSuccess()) {
           response.discardEntityBytes()
           Future.successful(())
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -786,9 +782,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                 s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id} At least one cursor failed to commit, details are $commitCursorsResponse")
               Some(commitCursorsResponse)
             }
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
 
@@ -827,9 +822,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         } else if (response.status.isSuccess()) {
           response.discardEntityBytes()
           Future.successful(true)
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -977,9 +971,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                     .runWith(Sink.seq)
                 }
               } yield result.toList
-            } else {
+            } else
               processNotSuccessful(request, response)
-            }
         }
       }
     } yield result
@@ -1132,7 +1125,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                 .EventStreamContext(flowId, subscriptionId, streamId, this))))
 
           Future.successful(Subscriptions.NakadiSource(streamId, graph, request))
-        } else {
+        } else
           response.status match {
             case StatusCodes.NotFound =>
               Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
@@ -1145,7 +1138,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             case _ =>
               processNotSuccessful(request, response)
           }
-        }
       }
     } yield result
   }
@@ -1196,7 +1188,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Some(flowId)
 
       @inline def logDetails =
-        s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}, CursorToken: ${subscriptionEvent.cursor.cursorToken}, Partition: ${subscriptionEvent.cursor.partition.id}"
+        s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}, CursorToken: ${subscriptionEvent.cursor.cursorToken.id.toString}, Partition: ${subscriptionEvent.cursor.partition.id}"
 
       @inline def logAlwaysSuccess() =
         logger.debug(s"$logDetails Committing cursors")
@@ -1350,9 +1342,9 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   }
 
   /**
-    * infinitely reconnect to nakadi
+    * Indefinitely reconnect to nakadi
     */
-  private def reconnect[T](
+  private[this] def reconnect[T](
       subscriptionId: SubscriptionId,
       eventCallback: Subscriptions.EventCallback[T],
       connectionClosedCallback: Subscriptions.ConnectionClosedCallback,
@@ -1374,11 +1366,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           modifySourceFunction
         ))
       .recoverWith {
-        case NonFatal(t) => {
+        case NonFatal(e) =>
           logger.info(s"Reconnecting failed, retry again in ${kanadiHttpConfig.serverDisconnectRetryDelay
-            .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
+            .toString()}, SubscriptionId: ${subscriptionId.id.toString}", e.getCause)
           reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
-        }
       }
 
   /**
@@ -1398,7 +1389,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     * @param eventStreamSupervisionDecider The supervision decider which decides what to do when an error is thrown in the stream. Default behaviour is if its a JSON Circe decoding exception on event data, it will commit the cursor, log the error and resume the stream, otherwise it will log the error and restart the stream.
     * @param modifySourceFunction Allows you to specify a function which modifies the underlying stream
     * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
-    * @tparam T
     * @return Initial Stream Id
     */
   def eventsStreamedManaged[T](subscriptionId: SubscriptionId,
@@ -1422,12 +1412,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       Subscriptions.ConnectionClosedCallback { connectionClosedData =>
         if (!connectionClosedData.cancelledByClient) {
           logger.info(s"Server disconnected Nakadi stream, reconnecting in ${kanadiHttpConfig.serverDisconnectRetryDelay
-            .toString()} Old StreamId: ${connectionClosedData.oldStreamId}, SubscriptionId: ${subscriptionId.id.toString}")
+            .toString()}. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
 
           reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
         } else
           logger.info(
-            s"Nakadi stream cancelled by the client application, not reconnecting Old StreamId: ${connectionClosedData.oldStreamId}, SubscriptionId: ${subscriptionId.id.toString}")
+            s"Nakadi stream cancelled by the client application, not reconnecting. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
         // Executing the original callback if specified
         connectionClosedCallback.connectionClosedCallback(connectionClosedData)
       },
@@ -1465,7 +1455,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       streamConfig
     ).map { nakadiSource =>
         logger.info(
-          s"Initialized Nakadi Stream with StreamId: ${nakadiSource.streamId}, SubscriptionId: ${subscriptionId.id.toString}")
+          s"Initialized Nakadi Stream with StreamId: ${nakadiSource.streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
         nakadiSource
       }
       .recoverWith {
@@ -1529,9 +1519,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[SubscriptionStats]
             .map(x => Some(x))
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
