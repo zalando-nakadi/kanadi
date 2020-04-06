@@ -30,11 +30,11 @@ sealed abstract class Audience(val id: String) extends EnumEntry with Product wi
 
 object Audience extends Enum[Audience] {
   val values = findValues
-  case object BusinessUnitInternal extends Audience("business-unit-internal")
-  case object CompanyInternal      extends Audience("company-internal")
-  case object ComponentInternal    extends Audience("component-internal")
-  case object ExternalPartner      extends Audience("external-partner")
-  case object ExternalPublic       extends Audience("external-public")
+  final case object BusinessUnitInternal extends Audience("business-unit-internal")
+  final case object CompanyInternal      extends Audience("company-internal")
+  final case object ComponentInternal    extends Audience("component-internal")
+  final case object ExternalPartner      extends Audience("external-partner")
+  final case object ExternalPublic       extends Audience("external-public")
 
   implicit val audienceEncoder: Encoder[Audience] =
     enumeratum.Circe.encoder(Audience)
@@ -49,9 +49,9 @@ sealed abstract class Category(val id: String) extends EnumEntry with Product wi
 
 object Category extends Enum[Category] {
   val values = findValues
-  case object Business  extends Category("business")
-  case object Data      extends Category("data")
-  case object Undefined extends Category("undefined")
+  final case object Business  extends Category("business")
+  final case object Data      extends Category("data")
+  final case object Undefined extends Category("undefined")
 
   implicit val categoryEncoder: Encoder[Category] =
     enumeratum.Circe.encoder(Category)
@@ -66,7 +66,7 @@ sealed abstract class EnrichmentStrategy(val id: String) extends EnumEntry with 
 
 object EnrichmentStrategy extends Enum[EnrichmentStrategy] {
   val values = findValues
-  case object MetadataEnrichment extends EnrichmentStrategy("metadata_enrichment")
+  final case object MetadataEnrichment extends EnrichmentStrategy("metadata_enrichment")
 
   implicit val enrichmentStrategyEncoder: Encoder[EnrichmentStrategy] =
     enumeratum.Circe.encoder(EnrichmentStrategy)
@@ -80,9 +80,9 @@ sealed abstract class PartitionStrategy(val id: String) extends EnumEntry with P
 
 object PartitionStrategy extends Enum[PartitionStrategy] {
   val values = findValues
-  case object Random      extends PartitionStrategy("random")
-  case object UserDefined extends PartitionStrategy("user_defined")
-  case object Hash        extends PartitionStrategy("hash")
+  final case object Random      extends PartitionStrategy("random")
+  final case object UserDefined extends PartitionStrategy("user_defined")
+  final case object Hash        extends PartitionStrategy("hash")
 
   implicit val partitionStrategyEncoder: Encoder[PartitionStrategy] =
     enumeratum.Circe.encoder(PartitionStrategy)
@@ -96,8 +96,8 @@ sealed abstract class CleanupPolicy(val id: String) extends EnumEntry with Produ
 
 object CleanupPolicy extends Enum[CleanupPolicy] {
   val values = findValues
-  case object Compact extends CleanupPolicy("compact")
-  case object Delete  extends CleanupPolicy("delete")
+  final case object Compact extends CleanupPolicy("compact")
+  final case object Delete  extends CleanupPolicy("delete")
 
   implicit val cleanupPolicyEncoder: Encoder[CleanupPolicy] =
     enumeratum.Circe.encoder(CleanupPolicy)
@@ -111,9 +111,9 @@ sealed abstract class CompatibilityMode(val id: String) extends EnumEntry with P
 
 object CompatibilityMode extends Enum[CompatibilityMode] {
   val values = findValues
-  case object Compatible extends CompatibilityMode("compatible")
-  case object Forward    extends CompatibilityMode("forward")
-  case object None       extends CompatibilityMode("none")
+  final case object Compatible extends CompatibilityMode("compatible")
+  final case object Forward    extends CompatibilityMode("forward")
+  final case object None       extends CompatibilityMode("none")
 
   implicit val compatibilityModeEncoder: Encoder[CompatibilityMode] =
     enumeratum.Circe.encoder(CompatibilityMode)
@@ -128,8 +128,7 @@ final case class EventTypeSchema(version: Option[String],
                                  schema: Json)
 
 object EventTypeSchema {
-
-  val anyJsonObject = EventTypeSchema(
+  val anyJsonObject: EventTypeSchema = EventTypeSchema(
     None,
     None,
     EventTypeSchema.Type.JsonSchema,
@@ -143,7 +142,7 @@ object EventTypeSchema {
   object Type extends Enum[Type] {
     val values = findValues
 
-    case object JsonSchema extends Type("json_schema")
+    final case object JsonSchema extends Type("json_schema")
 
     implicit val eventTypeSchemaTypeEncoder: Encoder[Type] =
       enumeratum.Circe.encoder(Type)
@@ -232,7 +231,6 @@ object EventTypeOptions {
 }
 
 /**
-  *
   * @param name Name of this [[EventType]]. The name is constrained by a regular expression. Note: the name can encode the owner/responsible for this [[EventType]] and ideally should follow a common pattern that makes it easy to read and understand, but this level of structure is not enforced. For example a team name and data type can be used such as 'acme-team.price-change'.
   * @param owningApplication Indicator of the (Stups) Application owning this [[EventType]].
   * @param category Defines the category of this [[EventType]]. The value set will influence, if not set otherwise, the default set of validations, [[enrichmentStrategies]], and the effective schema for validation in the following way: - [[Category.Undefined]]: No predefined changes apply. The effective schema for the validation is exactly the same as the [[EventTypeSchema]]. - `data`: Events of this category will be [[org.zalando.kanadi.api.Event.DataChange]]. The effective schema during the validation contains [[org.zalando.kanadi.api.Metadata]], and adds fields [[org.zalando.kanadi.api.Event.DataChange.data]] and [[org.zalando.kanadi.api.Event.DataChange.dataType]]. The passed [[EventTypeSchema]] defines the schema of [[org.zalando.kanadi.api.Event.DataChange.data]]. - [[Category.Business]]: Events of this category will be [[org.zalando.kanadi.api.Event.Business]]. The effective schema for validation contains [[org.zalando.kanadi.api.Metadata]] and any additionally defined properties passed in the [[EventTypeSchema]] directly on top level of the [[org.zalando.kanadi.api.Event]]. If name conflicts arise, creation of this [[EventType]] will be rejected.
@@ -356,9 +354,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
         if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[EventType]]
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -405,9 +402,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
         if (response.status.isSuccess()) {
           response.discardEntityBytes()
           Future.successful(())
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -444,9 +440,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[EventType]
             .map(Some.apply)
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -481,9 +476,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
         if (response.status.isSuccess()) {
           response.discardEntityBytes()
           Future.successful(())
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -520,9 +514,8 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
         if (response.status.isSuccess()) {
           response.discardEntityBytes()
           Future.successful(())
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }

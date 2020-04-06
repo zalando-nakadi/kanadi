@@ -51,9 +51,8 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
         if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[String]]
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
@@ -92,9 +91,8 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
         if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[List[PartitionStrategy]]
-        } else {
+        } else
           processNotSuccessful(request, response)
-        }
       }
     } yield result
   }
