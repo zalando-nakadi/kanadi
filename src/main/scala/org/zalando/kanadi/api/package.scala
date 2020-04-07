@@ -74,7 +74,6 @@ package object api {
     } yield {
       stringOrProblem match {
         case Left(body) =>
-          println(body)
           parser.parse(body).flatMap(_.as[BasicServerError]) match {
             case Left(_) =>
               throw new HttpServiceError(request, response, stringOrProblem)
