@@ -2,11 +2,11 @@ package org.zalando.kanadi
 
 import akka.http.scaladsl.coding._
 import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{ContentTypes, HttpHeader, HttpRequest, HttpResponse}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.{HttpEntity, HttpHeader, HttpRequest, HttpResponse}
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.Materializer
+import cats.syntax.either._
 import com.typesafe.scalalogging.CanLog
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._
 import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
 import org.mdedetrich.webmodels.{FlowId, OAuth2Token, Problem}
@@ -70,18 +70,41 @@ package object api {
       implicit materializer: Materializer,
       executionContext: ExecutionContext): Future[Nothing] =
     for {
-      json <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-               .to[Json]
+      stringOrProblem <- unmarshalStringOrProblem(response.entity)
     } yield {
-      json.as[Problem] match {
-        case Left(_) =>
-          json.as[BasicServerError] match {
+      stringOrProblem match {
+        case Left(body) =>
+          println(body)
+          parser.parse(body).flatMap(_.as[BasicServerError]) match {
             case Left(_) =>
-              throw new HttpServiceError(request, response)
+              throw new HttpServiceError(request, response, stringOrProblem)
             case Right(basicServerError) =>
               throw OtherError(basicServerError)
           }
-        case Right(problem) => throw new GeneralError(problem, request, response)
+        case Right(problem) =>
+          throw new GeneralError(problem, request, response)
       }
     }
+
+  private[kanadi] def maybeStringToProblem(string: String): Option[Problem] = {
+    import org.mdedetrich.webmodels.circe._
+    if (string.isEmpty)
+      None
+    else
+      for {
+        asJson    <- io.circe.parser.parse(string).right.toOption
+        asProblem <- asJson.as[Problem].right.toOption
+      } yield asProblem
+  }
+
+  private[kanadi] def unmarshalStringOrProblem(entity: HttpEntity)(
+      implicit materializer: Materializer,
+      executionContext: ExecutionContext): Future[Either[String, Problem]] =
+    for {
+      asString <- Unmarshal(entity).to[String].recover {
+                   case Unmarshaller.NoContentException => ""
+                 }
+      tryDecodeAsProblem = maybeStringToProblem(asString)
+
+    } yield tryDecodeAsProblem.toRight(asString)
 }

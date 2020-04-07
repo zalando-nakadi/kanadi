@@ -201,16 +201,20 @@ object CommitCursorResponse {
 
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
-  sealed abstract class Errors(override val httpRequest: HttpRequest, override val httpResponse: HttpResponse)
-      extends HttpServiceError(httpRequest, httpResponse)
+  sealed abstract class Errors(override val httpRequest: HttpRequest,
+                               override val httpResponse: HttpResponse,
+                               override val stringOrProblem: Either[String, Problem])
+      extends HttpServiceError(httpRequest, httpResponse, stringOrProblem)
 
   object Errors {
     final case class NoEmptySlotsOrCursorReset(override val httpRequest: HttpRequest,
-                                               override val httpResponse: HttpResponse)
-        extends Errors(httpRequest, httpResponse)
+                                               override val httpResponse: HttpResponse,
+                                               override val stringOrProblem: Either[String, Problem])
+        extends Errors(httpRequest, httpResponse, stringOrProblem)
     final case class SubscriptionNotFound(override val httpRequest: HttpRequest,
-                                          override val httpResponse: HttpResponse)
-        extends Errors(httpRequest, httpResponse)
+                                          override val httpResponse: HttpResponse,
+                                          override val stringOrProblem: Either[String, Problem])
+        extends Errors(httpRequest, httpResponse, stringOrProblem)
   }
 
   final case class EventJsonParsingException(subscriptionEventInfo: SubscriptionEventInfo,
@@ -939,11 +943,15 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       result <- {
         response.status match {
           case StatusCodes.NotFound =>
-            response.discardEntityBytes()
-            throw Subscriptions.Errors.SubscriptionNotFound(request, response)
+            unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+              stringOrProblem =>
+                throw Subscriptions.Errors.SubscriptionNotFound(request, response, stringOrProblem)
+            }
           case StatusCodes.Conflict =>
-            response.discardEntityBytes()
-            throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response)
+            unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+              stringOrProblem =>
+                throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response, stringOrProblem)
+            }
           case _ =>
             if (response.status.isSuccess()) {
               for {
@@ -1122,11 +1130,15 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         } else
           response.status match {
             case StatusCodes.NotFound =>
-              response.discardEntityBytes()
-              throw Subscriptions.Errors.SubscriptionNotFound(request, response)
+              unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+                stringOrProblem =>
+                  throw Subscriptions.Errors.SubscriptionNotFound(request, response, stringOrProblem)
+              }
             case StatusCodes.Conflict =>
-              response.discardEntityBytes()
-              throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response)
+              unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+                stringOrProblem =>
+                  throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response, stringOrProblem)
+              }
             case _ =>
               processNotSuccessful(request, response)
           }
@@ -1359,8 +1371,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         ))
       .recoverWith {
         case NonFatal(e) =>
-          logger.info(s"Reconnecting failed, retry again in ${kanadiHttpConfig.serverDisconnectRetryDelay
-            .toString()}, SubscriptionId: ${subscriptionId.id.toString}", e.getCause)
+          logger.info(
+            s"Reconnecting failed, retry again in ${kanadiHttpConfig.serverDisconnectRetryDelay
+              .toString()}, SubscriptionId: ${subscriptionId.id.toString}",
+            e.getCause
+          )
           reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
       }
 
