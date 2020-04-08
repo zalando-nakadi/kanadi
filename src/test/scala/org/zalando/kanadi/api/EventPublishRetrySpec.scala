@@ -56,11 +56,8 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
   sealed abstract class State
 
   object State {
-
-    final case object Initial extends State
-
-    final case class RetryFailed(failedEvents: List[Event[EventData]]) extends State
-
+    case object Initial extends State
+    case class RetryFailed(failedEvents: List[Event[EventData]]) extends State
   }
 
   private val TestEvent = "test-event"
