@@ -10,7 +10,6 @@ import org.specs2.specification.core.SpecStructure
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import CrossVersionImports._
 import org.zalando.kanadi.models.{EventId, SpanCtx}
 import java.time.OffsetDateTime
 

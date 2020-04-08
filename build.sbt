@@ -1,38 +1,18 @@
 name := """kanadi"""
 
-val akkaHttpVersion                          = "10.1.11"
-val akkaStreamsJsonLatestVersion             = "0.4.0"
-val akkaStreamsJsonOldVersion                = "0.3.0"
-val currentScalaVersion                      = "2.12.11"
-val scala213Version                          = "2.13.1"
-val enumeratumCirceLatestVersion             = "1.5.22"
-val enumeratumCirceOldVersion                = "1.5.20"
-val circeLatestVersion                       = "0.12.3" // for Scala 2.12 and 2.13
-val circeOldVersion                          = "0.11.1" // only for scala 2.11
-val akkaVersion                              = "2.5.26"
-val specs2OldVersion                         = "4.3.4"
-val specs2LatestVersion                      = "4.8.0"
-val heikoseebergerAkkaHttpCirceOldVersion    = "1.25.2"
-val heikoseebergerAkkaHttpCirceLatestVersion = "1.29.1"
-
-def circeVersion(scalaVer: String): String =
-  if (scalaVer.startsWith("2.11")) circeOldVersion else circeLatestVersion
-
-def specs2Version(scalaVer: String): String =
-  if (scalaVer.startsWith("2.11")) specs2OldVersion else specs2LatestVersion
-
-def enumeratumCirceVersion(scalaVer: String): String =
-  if (scalaVer.startsWith("2.11")) enumeratumCirceOldVersion else enumeratumCirceLatestVersion
-
-def akkaStreamsJsonVersion(scalaVer: String): String =
-  if (scalaVer.startsWith("2.11")) akkaStreamsJsonOldVersion else akkaStreamsJsonLatestVersion
-
-def heikoseebergerAkkaHttpCirceVersion(scalaVer: String): String =
-  if (scalaVer.startsWith("2.11")) heikoseebergerAkkaHttpCirceOldVersion else heikoseebergerAkkaHttpCirceLatestVersion
+val akkaHttpVersion                    = "10.1.11"
+val akkaStreamsJsonVersion             = "0.6.0"
+val currentScalaVersion                = "2.12.11"
+val scala213Version                    = "2.13.1"
+val enumeratumCirceVersion             = "1.5.23"
+val circeVersion                       = "0.13.0"
+val akkaVersion                        = "2.6.3"
+val specs2Version                      = "4.8.0"
+val heikoseebergerAkkaHttpCirceVersion = "1.31.0"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
-crossScalaVersions in ThisBuild := Seq("2.11.11", currentScalaVersion, "2.13.1")
+crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.13.1")
 
 organization := "org.zalando"
 
@@ -74,22 +54,6 @@ scalacOptions ++= Seq(
   "-Ywarn-value-discard"  // Warn when non-Unit expression results are unused.
 )
 
-val flagsFor11 = Seq(
-  "-Xlint:_",
-  "-Yconst-opt",
-  "-Ywarn-infer-any",
-  "-Yclosure-elim",
-  "-Ydead-code",
-  "-Ypartial-unification",
-  "-Ywarn-inaccessible",              // Warn about inaccessible types in method signatures.
-  "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
-  "-Xlint:unsound-match",             // Pattern match may not be typesafe.
-  "-Ywarn-infer-any",                 // Warn when a type argument is inferred to be `Any`.
-  "-Xlint:nullary-override",          // Warn when non-nullary `def f()' overrides nullary `def f'.
-  "-Xlint:nullary-unit",              // Warn when nullary methods return Unit.
-  "-Xsource:2.12"                     // required to build case class construction
-)
-
 val flagsFor12 = Seq(
   "-Xlint:_",
   "-Ywarn-infer-any",
@@ -114,8 +78,6 @@ scalacOptions ++= {
       flagsFor13
     case Some((2, n)) if n == 12 =>
       flagsFor12
-    case Some((2, n)) if n == 11 =>
-      flagsFor11
   }
 }
 
@@ -124,25 +86,21 @@ libraryDependencies ++= {
     "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion,
     "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka"          %% "akka-stream"         % akkaVersion,
-    "org.mdedetrich"             %% "censored-raw-header" % "0.4.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.7.1",
-    "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion(scalaVersion.value),
-    "io.circe"                   %% "circe-parser"        % circeVersion(scalaVersion.value),
-    "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion(scalaVersion.value),
-    "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion(scalaVersion.value),
-    "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion(scalaVersion.value),
+    "org.mdedetrich"             %% "censored-raw-header" % "0.5.0",
+    "org.mdedetrich"             %% "webmodels"           % "0.8.1",
+    "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
+    "io.circe"                   %% "circe-parser"        % circeVersion,
+    "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
+    "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
+    "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
     "com.iheart"                 %% "ficus"               % "1.4.7",
     "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.2",
     "ch.qos.logback"             % "logback-classic"      % "1.1.7",
-    "org.specs2"                 %% "specs2-core"         % specs2Version(scalaVersion.value) % Test
+    "org.specs2"                 %% "specs2-core"         % specs2Version % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
       Seq(
         "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0" % Test
-      )
-    case Some((2, n)) if n == 11 =>
-      Seq(
-        "io.circe" %% "circe-java8" % circeVersion(scalaVersion.value)
       )
     case _ =>
       Seq.empty
