@@ -15,7 +15,6 @@ import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
 import io.circe.Decoder.Result
-import CrossVersionImports._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
 import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider}

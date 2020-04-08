@@ -19,7 +19,6 @@ import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
-import CrossVersionImports._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.syntax._
 import org.zalando.kanadi.api.defaults._
