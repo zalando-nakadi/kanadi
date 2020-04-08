@@ -125,7 +125,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion,
     "com.typesafe.akka"          %% "akka-stream"         % akkaVersion,
     "org.mdedetrich"             %% "censored-raw-header" % "0.4.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.7.0",
+    "org.mdedetrich"             %% "webmodels"           % "0.7.1",
     "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion(scalaVersion.value),
     "io.circe"                   %% "circe-parser"        % circeVersion(scalaVersion.value),
     "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion(scalaVersion.value),
