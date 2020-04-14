@@ -30,7 +30,7 @@ drawbacks, its ultra stable and portable across the Scala ecosystem.
 as [Monix](https://monix.io/)), [akka-stream](https://doc.akka.io/docs/akka/2.5/stream/index.html) is still the best when
 it comes to binary compatibility. It also comes with a lot of support for monitoring. Note that interopting between
 streams is possible with any other stream that follows the [Reactive Streams](http://www.reactive-streams.org/) protocol.
-* Scala 2.10.x support since akka-streams/akka-http does not support Scala 2.10
+* Scala 2.11.x support since akka 2.6 does not support Scala 2.11
 
 ### Current status
 
@@ -46,35 +46,19 @@ Kanadi is currently deployed to OSS Sonatype. For Circe 0.12.x use Kanadi 0.5.x 
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.6.0"
+    "org.zalando" %% "kanadi" % "0.7.1"
 )
 ```
 
-For Circe 0.11.x use Kanadi 0.4.x
+For Circe 0.12.x use Kanadi 0.6.x
 
 ```sbt
 libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.4.2"
+    "org.zalando" %% "kanadi" % "0.6.1"
 )
 ```
 
-For Circe 0.10.x use Kanadi 0.3.x
-
-```sbt
-libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.3.6"
-)
-```
-
-Otherwise if you need a Kanadi built against Circe 0.9.x use Kanadi 0.2.x
-
-```sbt
-libraryDependencies ++= Seq(
-    "org.zalando" %% "kanadi" % "0.2.8"
-)
-```
-
-Kanadi is currently built against Scala 2.11.x and 2.12.x
+Kanadi is currently built against Scala 2.13.x and 2.12.x
 
 ### Usage
 
