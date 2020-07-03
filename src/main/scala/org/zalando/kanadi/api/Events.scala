@@ -368,9 +368,11 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
           if e.getMessage.contains(
             "The http server closed the connection unexpectedly before delivering responses for") =>
         retryUnexpectedFailure(events, count, e, currentDuration)
-      case httpServiceError: HttpServiceError
-          if httpServiceError.httpResponse.status.intValue().toString.startsWith("5") =>
+      case httpServiceError: HttpServiceError =>
         retryUnexpectedFailure(events, count, httpServiceError, currentDuration)
+      case streamException: StreamTcpException =>
+        logger.info(s"Stream error: ${streamException} ")
+        retryUnexpectedFailure(events, count, streamException, currentDuration)
     }
   }
 
