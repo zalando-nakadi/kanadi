@@ -1,6 +1,6 @@
 package org.zalando.kanadi.api
 
-import java.net.URI
+import java.net.{ServerSocket, URI}
 import java.util.UUID
 
 import defaults._
@@ -42,6 +42,15 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
     Retry forever and eventually fail $retryForeverAndFail
   """
 
+  def getFreePort(): Int = {
+    val socket = new ServerSocket(0)
+    val port   = socket.getLocalPort
+    socket.close()
+    port
+  }
+
+  val port = getFreePort()
+
   lazy val config = ConfigFactory.load()
 
   implicit val system       = ActorSystem()
@@ -51,13 +60,16 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
   import scala.util._
 
   val eventsClient =
-    Events(new URI("http://localhost:8000"), None)
+    Events(new URI(s"http://localhost:$port"), None)
 
   sealed abstract class State
 
   object State {
     case object Initial extends State
-    case class RetryFailed(failedEvents: List[Event[EventData]]) extends State
+    case class RetryFailed(serverFailedEvents: List[Event[EventData]], validationFailedEvent: List[Event[EventData]])
+        extends State {
+      def failedEvents: List[Event[EventData]] = serverFailedEvents ++ validationFailedEvent
+    }
   }
 
   private val TestEvent = "test-event"
@@ -88,8 +100,10 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
     list.splitAt(index)
   }
 
-  val retryWithFailedEventsPromise = Promise[List[Event[EventData]]]
-  val retryWithFailedEvents        = retryWithFailedEventsPromise.future
+  val retryWithFailedEventsPromise  = Promise[State.RetryFailed]
+  val retryWithFailedEvents         = retryWithFailedEventsPromise.future
+  val retryWithRetriedEventsPromise = Promise[List[Event[EventData]]]
+  val retryWithRetriedEvents        = retryWithRetriedEventsPromise.future
 
   def routes(runForever: Boolean) =
     pathPrefix("event-types" / TestEvent / "events") {
@@ -99,29 +113,32 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
             state match {
               case State.Initial =>
                 val (_, fail) = randomSplit(events)
-                val failedEvents = fail.map { event =>
-                  if (event.data.order == 10)
-                    Events.BatchItemResponse(
-                      event.getMetadata.map(_.eid),
-                      Events.PublishingStatus.Aborted,
-                      Some(Events.Step.Validating),
-                      None
-                    )
-                  else
-                    Events.BatchItemResponse(
-                      event.getMetadata.map(_.eid),
-                      Events.PublishingStatus.Aborted,
-                      Some(Events.Step.Enriching),
-                      None
-                    )
-                }
+                // Lets make sure event 10 will always fail with a validation error
+                val (validationFailedEvents, serverFailedEvents) = fail.partition(_.data.order == 10)
+                val retryFailed                                  = State.RetryFailed(serverFailedEvents, validationFailedEvents)
 
-                state = State.RetryFailed(fail)
+                state = retryFailed
 
-                complete((StatusCodes.MultiStatus, failedEvents))
-              case State.RetryFailed(fail) =>
+                complete(
+                  (StatusCodes.MultiStatus,
+                   retryFailed.serverFailedEvents.map(
+                     event =>
+                       Events.BatchItemResponse(
+                         event.getMetadata.map(_.eid),
+                         Events.PublishingStatus.Aborted,
+                         Some(Events.Step.Enriching),
+                         None
+                       )) ++ retryFailed.validationFailedEvent.map(
+                     event =>
+                       Events.BatchItemResponse(
+                         event.getMetadata.map(_.eid),
+                         Events.PublishingStatus.Aborted,
+                         Some(Events.Step.Validating),
+                         None
+                       ))))
+              case rf: State.RetryFailed =>
                 if (runForever) {
-                  val failedEvents = fail.map { event =>
+                  val failedEvents = rf.failedEvents.map { event =>
                     Events.BatchItemResponse(
                       event.getMetadata.map(_.eid),
                       Events.PublishingStatus.Aborted,
@@ -131,7 +148,8 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
                   }
                   complete((StatusCodes.MultiStatus, failedEvents))
                 } else {
-                  retryWithFailedEventsPromise.complete(Success(fail))
+                  retryWithFailedEventsPromise.complete(Success(rf))
+                  retryWithRetriedEventsPromise.complete(Success(events))
                   complete(StatusCodes.OK)
                 }
             }
@@ -144,18 +162,22 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   def retryPartialEvents = {
     val future = for {
-      bind         <- Http(system).bindAndHandle(routes(false), "localhost", 8000)
-      _            <- eventsClient.publish(EventTypeName(TestEvent), events)
-      failedEvents <- retryWithFailedEvents
-      _            <- bind.terminate(1 minute)
-    } yield failedEvents
+      bind          <- Http(system).bindAndHandle(routes(false), "localhost", port)
+      _             <- eventsClient.publish(EventTypeName(TestEvent), events)
+      failedEvents  <- retryWithFailedEvents
+      retriedEvents <- retryWithRetriedEvents
+      _             <- bind.terminate(1 minute)
+    } yield {
+      failedEvents.failedEvents.nonEmpty &&
+      failedEvents.serverFailedEvents.toSet == retriedEvents.toSet
+    }
 
-    future must not be empty.await(3, 1 minute)
+    future must beTrue.await(3, 1 minute)
   }
 
   def retryForeverAndFail = {
     val future = for {
-      bind <- Http(system).bindAndHandle(routes(true), "localhost", 8000)
+      bind <- Http(system).bindAndHandle(routes(true), "localhost", port)
       _ <- eventsClient.publish(EventTypeName(TestEvent), events).recoverWith {
             case e => bind.terminate(1 minute).flatMap(_ => Future.failed(e))
           }

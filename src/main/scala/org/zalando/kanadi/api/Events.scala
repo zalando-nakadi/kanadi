@@ -330,23 +330,25 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
             s"Max retry failed for publishing events, event id's still not submitted are ${finalEvents.flatMap(_.eid.map(_.id)).mkString(",")}")
           Future.failed(Events.Errors.EventValidation(finalEvents))
         } else {
-          val (notValid, retry) = errors.partition(
+          val (noNeedToRetryResponse, toRetryResponse) = errors.partition(
             response =>
+              // If there is a validation error sending the event there is no point in retrying it
               response.step
                 .contains(Events.Step.Validating) || response.publishingStatus == Events.PublishingStatus.Submitted)
-          val toRetry = events.filter { event =>
+          val eventsToRetry = events.filter { event =>
             eventWithUndefinedEventIdFallback(event) match {
-              case Some(eid) => !retry.exists(_.eid.contains(eid))
-              case None      => false
+              case Some(eid) => toRetryResponse.exists(_.eid.contains(eid))
+              case None      => true // Lets just retry events which don't have valid eid's
             }
           }
 
           val newDuration = exponentialBackoffConfig.calculate(count, currentDuration)
 
           logger.warn(
-            s"Events with eid's ${retry.flatMap(_.eid).map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
+            s"Events with eid's ${toRetryResponse.flatMap(_.eid).map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
 
-          val invalidSchemaEvents = notValid.filter(_.publishingStatus != Events.PublishingStatus.Submitted)
+          val invalidSchemaEvents =
+            noNeedToRetryResponse.filter(_.publishingStatus != Events.PublishingStatus.Submitted)
 
           if (invalidSchemaEvents.nonEmpty) {
             val errorDetails = invalidSchemaEvents
@@ -359,10 +361,10 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
             logger.error(s"Events $errorDetails did not pass validation schema, not submitting")
           }
 
-          val newNotValidEvents = (currentNotValidEvents ++ notValid).distinct
+          val newNotValidEvents = (currentNotValidEvents ++ noNeedToRetryResponse).distinct
 
           akka.pattern.after(newDuration, http.system.scheduler)(
-            publishWithRecover(name, toRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
+            publishWithRecover(name, eventsToRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
         }
       case e: RuntimeException
           if e.getMessage.contains(
