@@ -28,7 +28,7 @@ class JsonSpec extends Specification {
   val uuid      = UUID.randomUUID()
   val testEvent = SomeEvent("Bart", "Simpson", uuid)
   val now       = OffsetDateTime.now()
-  val md        = Metadata(eid = EventId("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6"), occurredAt = now)
+  val md        = Metadata(eid = EventId(UUID.fromString("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6")), occurredAt = now)
 
   val coreEventJson = s"""
     "first_name": "Bart",
@@ -65,13 +65,13 @@ class JsonSpec extends Specification {
   // Sample data is taken from official Nakadi source at https://github.com/zalando/nakadi/blob/effb2ed7e95bd329ab73ce06b2857aa57510e539/src/test/java/org/zalando/nakadi/validation/JSONSchemaValidationTest.java
 
   val spanCtxJson =
-    """{"eid":"5678","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":"e9435c17dabe8238","ot-baggage-foo":"bar"}}"""
+    """{"eid":"04ba01db-9990-44bd-b733-be69008c5da3","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":"e9435c17dabe8238","ot-baggage-foo":"bar"}}"""
 
   val spanCtxBadJson =
-    """{"eid":"5678","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":42,"ot-baggage-foo":"bar"}}"""
+    """{"eid":"04ba01db-9990-44bd-b733-be69008c5da3","occurred_at":"1992-08-03T10:00:00Z","span_ctx":{"ot-tracer-spanid":"b268f901d5f2b865","ot-tracer-traceid":42,"ot-baggage-foo":"bar"}}"""
 
   val spanCtxEventMetadata = Metadata(
-    eid = EventId("5678"),
+    eid = EventId(UUID.fromString("04ba01db-9990-44bd-b733-be69008c5da3")),
     occurredAt = OffsetDateTime.parse("1992-08-03T10:00:00Z"),
     spanCtx = Some(
       SpanCtx(
