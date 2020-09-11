@@ -1352,6 +1352,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       eventCallback: Subscriptions.EventCallback[T],
       connectionClosedCallback: Subscriptions.ConnectionClosedCallback,
       streamConfig: Subscriptions.StreamConfig,
+      reconnectDelay: FiniteDuration,
       modifySourceFunction: Option[
         Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T], UniqueKillSwitch]])(
       implicit decoder: Decoder[List[Event[T]]],
@@ -1360,7 +1361,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
     akka.pattern
-      .after(kanadiHttpConfig.serverDisconnectRetryDelay, http.system.scheduler)(
+      .after(reconnectDelay, http.system.scheduler)(
         eventsStreamedManaged[T](
           subscriptionId,
           eventCallback,
@@ -1371,11 +1372,15 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .recoverWith {
         case NonFatal(e) =>
           logger.info(
-            s"Reconnecting failed, retry again in ${kanadiHttpConfig.serverDisconnectRetryDelay
-              .toString()}, SubscriptionId: ${subscriptionId.id.toString}",
+            s"Reconnecting failed, retry again in ${reconnectDelay.toString()}, SubscriptionId: ${subscriptionId.id.toString}",
             e.getCause
           )
-          reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
+          reconnect(subscriptionId,
+                    eventCallback,
+                    connectionClosedCallback,
+                    streamConfig,
+                    reconnectDelay,
+                    modifySourceFunction)
       }
 
   /**
@@ -1420,7 +1425,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           logger.info(s"Server disconnected Nakadi stream, reconnecting in ${kanadiHttpConfig.serverDisconnectRetryDelay
             .toString()}. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
 
-          reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
+          reconnect(subscriptionId,
+                    eventCallback,
+                    connectionClosedCallback,
+                    streamConfig,
+                    kanadiHttpConfig.serverDisconnectRetryDelay,
+                    modifySourceFunction)
         } else
           logger.info(
             s"Nakadi stream cancelled by the client application, not reconnecting. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
@@ -1440,7 +1450,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
               .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
 
-          reconnect(subscriptionId, eventCallback, connectionClosedCallback, streamConfig, modifySourceFunction)
+          reconnect(subscriptionId,
+                    eventCallback,
+                    connectionClosedCallback,
+                    streamConfig,
+                    kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay,
+                    modifySourceFunction)
       }
 
   def eventsStreamedSourceManaged[T](subscriptionId: SubscriptionId,
