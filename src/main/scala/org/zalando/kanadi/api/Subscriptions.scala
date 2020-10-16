@@ -56,7 +56,7 @@ final case class Subscription(id: Option[SubscriptionId],
                               consumerGroup: Option[String] = None,
                               createdAt: Option[OffsetDateTime] = None,
                               readFrom: Option[String] = None,
-                              initialCursors: Option[List[String]] = None,
+                              initialCursors: Option[List[Subscriptions.CursorWithoutToken]] = None,
                               authorization: Option[SubscriptionAuthorization] = None)
 
 object Subscription {
@@ -234,6 +234,25 @@ object Subscriptions {
       Decoder.forProduct4("partition", "offset", "event_type", "cursor_token")(Cursor.apply)
 
   }
+
+  final case class CursorWithoutToken(partition: models.Partition, offset: String, eventType: EventTypeName)
+
+  object CursorWithoutToken {
+    implicit val cursorWithoutTokenEncoder: Encoder[CursorWithoutToken] =
+      Encoder.forProduct3(
+        "partition",
+        "offset",
+        "event_type"
+      )(x => CursorWithoutToken.unapply(x).get)
+
+    implicit val cursorWithoutTokenDecoder: Decoder[CursorWithoutToken] =
+      Decoder.forProduct3(
+        "partition",
+        "offset",
+        "event_type"
+      )(CursorWithoutToken.apply)
+  }
+
 
   final case class EventTypeStats(eventType: EventTypeName, partitions: List[EventTypeStats.Partition])
 
