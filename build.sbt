@@ -1,18 +1,18 @@
 name := """kanadi"""
 
-val akkaHttpVersion                    = "10.1.11"
-val akkaStreamsJsonVersion             = "0.6.0"
+val akkaHttpVersion                    = "10.2.2"
+val akkaStreamsJsonVersion             = "0.7.0"
 val currentScalaVersion                = "2.12.11"
-val scala213Version                    = "2.13.1"
+val scala213Version                    = "2.13.4"
 val enumeratumCirceVersion             = "1.5.23"
 val circeVersion                       = "0.13.0"
-val akkaVersion                        = "2.6.3"
+val akkaVersion                        = "2.6.10"
 val specs2Version                      = "4.8.0"
-val heikoseebergerAkkaHttpCirceVersion = "1.31.0"
+val heikoseebergerAkkaHttpCirceVersion = "1.35.3"
 
 scalaVersion in ThisBuild := currentScalaVersion
 
-crossScalaVersions in ThisBuild := Seq(currentScalaVersion, "2.13.1")
+crossScalaVersions in ThisBuild := Seq(currentScalaVersion, scala213Version)
 
 organization := "org.zalando"
 
@@ -123,10 +123,7 @@ developers := List(
             "Goutham Vidya Pradhan",
             "goutham.vidya.pradhan@gmail.com",
             url("https://github.com/gouthampradhan")),
-  Developer("javierarrieta",
-            "Javier Arrieta",
-            "javier.arrieta@zalando.ie",
-            url("https://github.com/javierarrieta")),
+  Developer("javierarrieta", "Javier Arrieta", "javier.arrieta@zalando.ie", url("https://github.com/javierarrieta")),
   Developer("pascalh", "Pascal Hof", "pascal.hof@zalando.de", url("https://github.com/pascalh"))
 )
 

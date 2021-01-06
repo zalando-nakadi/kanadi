@@ -25,7 +25,6 @@ import org.zalando.kanadi.api.defaults._
 import org.zalando.kanadi.models._
 import org.mdedetrich.akka.stream.support.CirceStreamSupport
 import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider, Problem}
-import org.mdedetrich.webmodels.circe._
 import org.zalando.kanadi.models
 
 import scala.collection.JavaConverters._
@@ -252,7 +251,6 @@ object Subscriptions {
         "event_type"
       )(CursorWithoutToken.apply)
   }
-
 
   final case class EventTypeStats(eventType: EventTypeName, partitions: List[EventTypeStats.Partition])
 
