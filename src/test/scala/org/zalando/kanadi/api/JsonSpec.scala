@@ -86,7 +86,7 @@ class JsonSpec extends Specification {
     decode[Metadata](spanCtxJson) must beRight(spanCtxEventMetadata)
 
   def encodeSpnCtx =
-    spanCtxEventMetadata.asJson.print(Printer.noSpaces.copy(dropNullValues = true)) mustEqual spanCtxJson
+    spanCtxEventMetadata.asJson.printWith(Printer.noSpaces.copy(dropNullValues = true)) mustEqual spanCtxJson
 
   def badDecodeSpnCtx =
     decode[Metadata](spanCtxBadJson) must beLeft(

@@ -160,17 +160,17 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   def retryPartialEvents = {
     val future = for {
-      _ <- Http(system)
-            .newServerAt("localhost", port)
-            .bind(routes(false))
-            .map(
-              _.addToCoordinatedShutdown(
-                10 seconds
-              ))
+      bind <- Http(system)
+               .newServerAt("localhost", port)
+               .bind(routes(false))
+               .map(
+                 _.addToCoordinatedShutdown(
+                   10 seconds
+                 ))
       _             <- eventsClient.publish(EventTypeName(TestEvent), events)
       failedEvents  <- retryWithFailedEvents
       retriedEvents <- retryWithRetriedEvents
-      _             <- system.terminate()
+      _             <- bind.terminate(10 seconds)
     } yield {
       failedEvents.failedEvents.nonEmpty &&
       failedEvents.serverFailedEvents.toSet == retriedEvents.toSet
@@ -181,15 +181,15 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   def retryForeverAndFail = {
     val future = for {
-      _ <- Http(system)
-            .newServerAt("localhost", port)
-            .bind(routes(true))
-            .map(
-              _.addToCoordinatedShutdown(
-                10 seconds
-              ))
+      bind <- Http(system)
+               .newServerAt("localhost", port)
+               .bind(routes(true))
+               .map(
+                 _.addToCoordinatedShutdown(
+                   10 seconds
+                 ))
       _ <- eventsClient.publish(EventTypeName(TestEvent), events).recoverWith {
-            case e => system.terminate().flatMap(_ => Future.failed(e))
+            case e => bind.terminate(10 seconds).flatMap(_ => Future.failed(e))
           }
     } yield ()
 
