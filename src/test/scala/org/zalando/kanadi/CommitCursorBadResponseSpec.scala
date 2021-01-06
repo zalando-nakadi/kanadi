@@ -4,7 +4,6 @@ import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import io.circe.JsonObject
@@ -31,7 +30,6 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
 
   implicit val system       = ActorSystem()
   implicit val http         = Http()
-  implicit val materializer = ActorMaterializer()
 
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 

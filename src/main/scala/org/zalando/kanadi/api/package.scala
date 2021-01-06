@@ -10,7 +10,6 @@ import com.typesafe.scalalogging.CanLog
 import io.circe._
 import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
 import org.mdedetrich.webmodels.{FlowId, OAuth2Token, Problem}
-import org.mdedetrich.webmodels.circe._
 import org.slf4j.MDC
 import org.zalando.kanadi.models._
 
@@ -31,11 +30,11 @@ package object api {
     def decodeCompressed(response: HttpResponse): HttpResponse = {
       val decoder = response.encoding match {
         case HttpEncodings.gzip =>
-          Gzip
+          Coders.Gzip
         case HttpEncodings.deflate =>
-          Deflate
+          Coders.Deflate
         case _ =>
-          NoCoding
+          Coders.NoCoding
       }
 
       decoder.decodeMessage(response)
@@ -91,8 +90,8 @@ package object api {
       None
     else
       for {
-        asJson    <- io.circe.parser.parse(string).right.toOption
-        asProblem <- asJson.as[Problem].right.toOption
+        asJson    <- io.circe.parser.parse(string).toOption
+        asProblem <- asJson.as[Problem].toOption
       } yield asProblem
   }
 

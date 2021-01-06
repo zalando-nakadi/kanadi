@@ -8,7 +8,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._
@@ -53,9 +52,8 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   lazy val config = ConfigFactory.load()
 
-  implicit val system       = ActorSystem()
-  implicit val http         = Http()
-  implicit val materializer = ActorMaterializer()
+  implicit val system = ActorSystem()
+  implicit val http   = Http()
 
   import scala.util._
 
@@ -100,9 +98,9 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
     list.splitAt(index)
   }
 
-  val retryWithFailedEventsPromise  = Promise[State.RetryFailed]
+  val retryWithFailedEventsPromise  = Promise[State.RetryFailed]()
   val retryWithFailedEvents         = retryWithFailedEventsPromise.future
-  val retryWithRetriedEventsPromise = Promise[List[Event[EventData]]]
+  val retryWithRetriedEventsPromise = Promise[List[Event[EventData]]]()
   val retryWithRetriedEvents        = retryWithRetriedEventsPromise.future
 
   def routes(runForever: Boolean) =
@@ -162,11 +160,17 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   def retryPartialEvents = {
     val future = for {
-      bind          <- Http(system).bindAndHandle(routes(false), "localhost", port)
+      _ <- Http(system)
+            .newServerAt("localhost", port)
+            .bind(routes(false))
+            .map(
+              _.addToCoordinatedShutdown(
+                10 seconds
+              ))
       _             <- eventsClient.publish(EventTypeName(TestEvent), events)
       failedEvents  <- retryWithFailedEvents
       retriedEvents <- retryWithRetriedEvents
-      _             <- bind.terminate(1 minute)
+      _             <- system.terminate()
     } yield {
       failedEvents.failedEvents.nonEmpty &&
       failedEvents.serverFailedEvents.toSet == retriedEvents.toSet
@@ -177,9 +181,15 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   def retryForeverAndFail = {
     val future = for {
-      bind <- Http(system).bindAndHandle(routes(true), "localhost", port)
+      _ <- Http(system)
+            .newServerAt("localhost", port)
+            .bind(routes(true))
+            .map(
+              _.addToCoordinatedShutdown(
+                10 seconds
+              ))
       _ <- eventsClient.publish(EventTypeName(TestEvent), events).recoverWith {
-            case e => bind.terminate(1 minute).flatMap(_ => Future.failed(e))
+            case e => system.terminate().flatMap(_ => Future.failed(e))
           }
     } yield ()
 

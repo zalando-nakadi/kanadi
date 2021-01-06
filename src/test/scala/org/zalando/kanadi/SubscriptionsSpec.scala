@@ -4,7 +4,6 @@ import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
@@ -25,9 +24,8 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
 
   val config = ConfigFactory.load()
 
-  implicit val system       = ActorSystem()
-  implicit val http         = Http()
-  implicit val materializer = ActorMaterializer()
+  implicit val system = ActorSystem()
+  implicit val http   = Http()
 
   val eventTypeName         = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
   val OwningApplication     = "KANADI"

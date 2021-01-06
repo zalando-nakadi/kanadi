@@ -10,7 +10,6 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, _}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._

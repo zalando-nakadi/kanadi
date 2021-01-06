@@ -5,18 +5,13 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.api.Subscriptions.{
-  ConnectionClosedCallback,
-  EventCallback,
-  defaultEventStreamSupervisionDecider
-}
+import org.zalando.kanadi.api.Subscriptions.{EventCallback, defaultEventStreamSupervisionDecider}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
@@ -33,9 +28,8 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
 
   val config = ConfigFactory.load()
 
-  implicit val system       = ActorSystem()
-  implicit val http         = Http()
-  implicit val materializer = ActorMaterializer()
+  implicit val system = ActorSystem()
+  implicit val http   = Http()
 
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
