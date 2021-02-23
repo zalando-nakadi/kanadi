@@ -1,7 +1,7 @@
 version: '2'
 services:
   nakadi:
-    image: adyach/nakadi-docker:latest
+    image: docker.pkg.github.com/adyach/nakadi-docker/nakadi:latest
     ports:
      - "8080:8080"
     depends_on:
@@ -16,7 +16,7 @@ services:
       - NAKADI_PLUGINS_AUTHZ_FACTORY=org.crazycoder.nakadiauthzfileplugin.FileAuthorizationServiceFactory
 
   postgres:
-    image: adyach/nakadi-postgres:latest
+    image: docker.pkg.github.com/adyach/nakadi-docker/postgres:9.5
     ports:
       - "5432:5432"
     environment:
@@ -25,12 +25,12 @@ services:
       POSTGRES_DB: local_nakadi_db
 
   zookeeper:
-    image: wurstmeister/zookeeper:3.4.6
+    image: docker.pkg.github.com/adyach/nakadi-docker/zookeeper:3.5.8
     ports:
       - "2181:2181"
 
   kafka:
-    image: wurstmeister/kafka:0.10.1.0
+    image: docker.pkg.github.com/adyach/kafka-docker/kafka-docker:2.7.0
     ports:
       - "9092:9092"
     depends_on:
@@ -44,4 +44,3 @@ services:
       KAFKA_BROKER_ID: 0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
