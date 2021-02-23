@@ -4,7 +4,10 @@ sudo: required
 dist: trusty
 
 env:
-  - DOCKER_COMPOSE_VERSION=1.21.1
+  matrix:
+    - DOCKER_COMPOSE_VERSION=1.21.1
+  global:
+    secure: hPsttYBEQ4DPTCQmyyi07EOLV39B6x/WG5pGbYcCsknI+cFPB6SODGMM6QglHew45AWd6nuLznn9ml9oq5QyqOq2yw1Sq50Ygvb8pEs+fs7/OaUqBAHYOqtMyYp/aOvMtSKilLPvmBnATpdE/7s6xlkgKl3Kih5d6l4+1/yRtCHjJLPvKByH8CqtRmOYaDzlEkPWWivWMu/NQrRmupIU4ENgpgkoaMpJhzaIrWyuFqCj053FhSPBQhAN+wU3yGjiTm0EQuygwAPkd0oF/7P9y8j7Eanu+A99hfNsDn1XtN9NlaRCzIS5K3Y29AxPQJXRH6V3+GD1nx9JYxsTRO13cVxIxC/KeKGQqGiC1wlyUKZpkT8L2uc49b30wGdynQeFMi10c2yJKlfPzjgex5dJGrDGDeGHOLYtyDDqbdHQuNrx9+ZQIvtxgv5YFLGAxbWe4Z+fbg7y0qOS4dKSnEexiFjQN0hGBtTH/x1aRc8vP5KEjzAM9pcDvBD4E1PM4isnz5mQ7lfXYOuS17NhswoKluWVg8lGFit/YbfO4EiCvgfGiH5e1lrEjz7nZY4GCWa2GPJZ8yQKsLMKEEoDGXkCXTyTudgO/0erF7pWG2/NxaMyi2D8Wx2RlAt3WAHBwyZzghVIY4xwU6W6c2swfF9CijT+CLmJPTZkz/clOJYN+E8=
 
 services:
   - docker
@@ -39,6 +42,7 @@ before_install:
 before_script:
   - sudo service mysql stop # By default travis has a MySQL service running, turn it off to prevent conflicts
   - sudo service postgresql stop # By default travis has a Postgres service running, turn it off to prevent conflicts
+  - echo "$GITHUB_CONTAINER_REGISTRY_TOKEN" | docker login -u "mdedetrich" --password-stdin docker.pkg.github.com
   - docker-compose up -d
 
 script:
