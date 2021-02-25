@@ -1,7 +1,7 @@
 ## Contributing
 
 Firstly, for any feature please make sure you test it, if you can't test the feature then you need to justify why.
-Templates for tests can be seen at [here](https://github.bus.zalan.do/grip/kanadi/tree/master/src/test/scala). For new
+Templates for tests can be seen at [here](https://github.com/zalando-nakadi/kanadi/tree/master/src/test/scala). For new
 features, its good to ask before starting work just so we can provide clarity as to whether we would eventually accept
 the feature request. Opening PR's as soon as possible is also recommended so that we have an early impression of what
 you are trying to accomplish (also so we can guide and help you).
