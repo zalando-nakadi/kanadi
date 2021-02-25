@@ -124,7 +124,8 @@ developers := List(
             "goutham.vidya.pradhan@gmail.com",
             url("https://github.com/gouthampradhan")),
   Developer("javierarrieta", "Javier Arrieta", "javier.arrieta@zalando.ie", url("https://github.com/javierarrieta")),
-  Developer("pascalh", "Pascal Hof", "pascal.hof@zalando.de", url("https://github.com/pascalh"))
+  Developer("pascalh", "Pascal Hof", "pascal.hof@zalando.de", url("https://github.com/pascalh")),
+  Developer("gchudnov", "Grigorii Chudnov", "g.chudnov@gmail.com", url("https://github.com/gchudnov"))
 )
 
 licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
