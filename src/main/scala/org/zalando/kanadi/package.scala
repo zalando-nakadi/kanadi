@@ -1,7 +1,6 @@
 package org.zalando
 
 import java.net.URI
-import cats.syntax.either._
 import io.circe.Decoder.Result
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}

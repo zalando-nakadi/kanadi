@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.{HttpEntity, HttpHeader, HttpRequest, HttpResponse}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.Materializer
-import cats.syntax.either._
 import com.typesafe.scalalogging.CanLog
 import io.circe._
 import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
