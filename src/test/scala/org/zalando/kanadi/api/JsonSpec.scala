@@ -3,8 +3,6 @@ package api
 
 import java.util.UUID
 
-import cats.syntax.either._
-import cats.instances.either._
 import org.specs2.Specification
 import org.specs2.specification.core.SpecStructure
 import io.circe._

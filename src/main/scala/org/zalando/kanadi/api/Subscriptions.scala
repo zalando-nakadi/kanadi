@@ -15,7 +15,6 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
