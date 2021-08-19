@@ -3,7 +3,6 @@ package org.zalando.kanadi.api
 import java.net.URI
 import java.time.OffsetDateTime
 import java.util.concurrent.ConcurrentHashMap
-
 import akka.NotUsed
 import defaults._
 import akka.http.scaladsl.HttpExt
@@ -108,6 +107,16 @@ object SubscriptionCursor {
 
   implicit val subscriptionCursorDecoder: Decoder[SubscriptionCursor] =
     Decoder.forProduct1("items")(SubscriptionCursor.apply)
+}
+
+final case class SubscriptionCursorWithoutToken(items: List[Subscriptions.CursorWithoutToken])
+
+object SubscriptionCursorWithoutToken {
+  implicit val subscriptionCursorWithoutTokenEncoder: Encoder[SubscriptionCursorWithoutToken] =
+    Encoder.forProduct1("items")(x => SubscriptionCursorWithoutToken.unapply(x).get)
+
+  implicit val subscriptionCursorWithoutTokenDecoder: Decoder[SubscriptionCursorWithoutToken] =
+    Decoder.forProduct1("items")(SubscriptionCursorWithoutToken.apply)
 }
 
 final case class SubscriptionEventInfo(cursor: Subscriptions.Cursor, info: Option[JsonObject])
@@ -853,8 +862,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
   }
 
-  def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(implicit
-      flowId: FlowId = randomFlowId(),
+  def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursorWithoutToken] = None)(
+      implicit flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Boolean] = {
     val uri = baseUri_
