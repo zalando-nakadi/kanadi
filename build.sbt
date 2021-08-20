@@ -155,3 +155,29 @@ Test / publishArtifact := false
 pomIncludeRepository := (_ => false)
 
 resolvers += Resolver.jcenterRepo
+
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
+  WorkflowStep.Sbt(List("clean", "coverage", "test"), name = Some("Build project"))
+)
+
+ThisBuild / githubWorkflowBuildPostamble ++= Seq(
+  // See https://github.com/scoverage/sbt-coveralls#github-actions-integration
+  WorkflowStep.Sbt(
+    List("coverageReport", "coverageAggregate", "coveralls"),
+    name = Some("Upload coverage data to Coveralls"),
+    env = Map(
+      "COVERALLS_REPO_TOKEN" -> "${{ secrets.GITHUB_TOKEN }}",
+      "COVERALLS_FLAG_NAME"  -> "Scala ${{ matrix.scala }}"
+    )
+  ),
+  WorkflowStep.Run(
+    List("docker-compose down"), name = Some("Shut down Nakadi")
+  )
+)
+
+// This is causing problems with env variables being passed in, see
+// https://github.com/sbt/sbt/issues/6468
+ThisBuild / githubWorkflowUseSbtThinClient := false
+
+ThisBuild / githubWorkflowPublishTargetBranches := Seq()
