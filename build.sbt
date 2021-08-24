@@ -10,17 +10,15 @@ val akkaVersion                        = "2.6.10"
 val specs2Version                      = "4.8.0"
 val heikoseebergerAkkaHttpCirceVersion = "1.35.3"
 
-scalaVersion in ThisBuild := currentScalaVersion
+ThisBuild / scalaVersion := currentScalaVersion
 
-crossScalaVersions in ThisBuild := Seq(currentScalaVersion, scala213Version)
+ThisBuild / crossScalaVersions := Seq(currentScalaVersion, scala213Version)
 
 organization := "org.zalando"
 
-fork in Test := true
-parallelExecution in Test := true
-testForkedParallel in Test := true
-
-updateOptions := updateOptions.value.withGigahorse(false)
+Test / fork := true
+Test / parallelExecution := true
+Test / testForkedParallel := true
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -107,7 +105,7 @@ libraryDependencies ++= {
   })
 }
 
-scalacOptions in Test ++= Seq("-Yrangepos")
+Test / scalacOptions ++= Seq("-Yrangepos")
 
 homepage := Some(url("https://github.com/zalando-incubator/kanadi"))
 
@@ -132,13 +130,7 @@ licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
 
 publishMavenStyle := true
 
-publishTo := {
-  val nexus = "https://oss.sonatype.org/"
-  if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
-  else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
+publishTo := sonatypePublishTo.value
 
 def emptyStringToNone(string: String): Option[String] =
   if (string.trim.isEmpty)
@@ -158,8 +150,34 @@ envVars ++= Map("TOKEN" -> sys.env.get("TOKEN").flatMap(emptyStringToNone)).coll
   case (k, Some(v)) => (k, v)
 }
 
-publishArtifact in Test := false
+Test / publishArtifact := false
 
 pomIncludeRepository := (_ => false)
 
 resolvers += Resolver.jcenterRepo
+
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
+  WorkflowStep.Sbt(List("clean", "coverage", "test"), name = Some("Build project"))
+)
+
+ThisBuild / githubWorkflowBuildPostamble ++= Seq(
+  // See https://github.com/scoverage/sbt-coveralls#github-actions-integration
+  WorkflowStep.Sbt(
+    List("coverageReport", "coverageAggregate", "coveralls"),
+    name = Some("Upload coverage data to Coveralls"),
+    env = Map(
+      "COVERALLS_REPO_TOKEN" -> "${{ secrets.GITHUB_TOKEN }}",
+      "COVERALLS_FLAG_NAME"  -> "Scala ${{ matrix.scala }}"
+    )
+  ),
+  WorkflowStep.Run(
+    List("docker-compose down"), name = Some("Shut down Nakadi")
+  )
+)
+
+// This is causing problems with env variables being passed in, see
+// https://github.com/sbt/sbt/issues/6468
+ThisBuild / githubWorkflowUseSbtThinClient := false
+
+ThisBuild / githubWorkflowPublishTargetBranches := Seq()
