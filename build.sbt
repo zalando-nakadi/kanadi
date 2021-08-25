@@ -16,17 +16,17 @@ ThisBuild / crossScalaVersions := Seq(currentScalaVersion, scala213Version)
 
 organization := "org.zalando"
 
-Test / fork := true
-Test / parallelExecution := true
+Test / fork               := true
+Test / parallelExecution  := true
 Test / testForkedParallel := true
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding",
-  "utf-8",                         // Specify character encoding used by source files.
-  "-explaintypes",                 // Explain type errors in more detail.
-  "-feature",                      // Emit warning and location for usages of features that should be imported explicitly.
-  "-language:existentials",        // Existential types (besides wildcard types) can be written and inferred
+  "utf-8",                  // Specify character encoding used by source files.
+  "-explaintypes",          // Explain type errors in more detail.
+  "-feature",               // Emit warning and location for usages of features that should be imported explicitly.
+  "-language:existentials", // Existential types (besides wildcard types) can be written and inferred
   "-language:experimental.macros", // Allow macro definition (besides implementation and application)
   "-language:higherKinds",         // Allow higher-kinded types
   "-language:implicitConversions", // Allow definition of implicit functions called views
@@ -93,7 +93,7 @@ libraryDependencies ++= {
     "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
     "com.iheart"                 %% "ficus"               % "1.4.7",
     "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.2",
-    "ch.qos.logback"             % "logback-classic"      % "1.1.7",
+    "ch.qos.logback"              % "logback-classic"     % "1.1.7",
     "org.specs2"                 %% "specs2-core"         % specs2Version % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
@@ -146,8 +146,8 @@ javaOptions ++= sys.props
   }
   .toList
 
-envVars ++= Map("TOKEN" -> sys.env.get("TOKEN").flatMap(emptyStringToNone)).collect {
-  case (k, Some(v)) => (k, v)
+envVars ++= Map("TOKEN" -> sys.env.get("TOKEN").flatMap(emptyStringToNone)).collect { case (k, Some(v)) =>
+  (k, v)
 }
 
 Test / publishArtifact := false
@@ -172,7 +172,8 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
     )
   ),
   WorkflowStep.Run(
-    List("docker-compose down"), name = Some("Shut down Nakadi")
+    List("docker-compose down"),
+    name = Some("Shut down Nakadi")
   )
 )
 

@@ -129,14 +129,14 @@ object SubscriptionEventInfo {
 final case class SubscriptionEventData[T](events: Option[List[Event[T]]])
 
 object SubscriptionEventData {
-  implicit def subscriptionEventDataEncoder[T](
-      implicit encoder: Encoder[List[Event[T]]]): Encoder[SubscriptionEventData[T]] =
+  implicit def subscriptionEventDataEncoder[T](implicit
+      encoder: Encoder[List[Event[T]]]): Encoder[SubscriptionEventData[T]] =
     Encoder.forProduct1(
       "events"
     )(x => SubscriptionEventData.unapply(x).get)
 
-  implicit def subscriptionEventDataDecoder[T](
-      implicit decoder: Decoder[List[Event[T]]]): Decoder[SubscriptionEventData[T]] =
+  implicit def subscriptionEventDataDecoder[T](implicit
+      decoder: Decoder[List[Event[T]]]): Decoder[SubscriptionEventData[T]] =
     Decoder.forProduct1(
       "events"
     )(SubscriptionEventData.apply)
@@ -336,13 +336,12 @@ object Subscriptions {
       )(EventTypeStats.apply)
   }
 
-  /**
-    *
-    * @param subscriptionEvent
+  /** @param subscriptionEvent
     * @param streamId
     * @param request
-    * @param flowId The current flowId, if [[EventCallback.separateFlowId]] is `true` then the new flowId will be here
-    *               else it will use the flowId used when [[Subscriptions.eventsStreamed]] is called
+    * @param flowId
+    *   The current flowId, if [[EventCallback.separateFlowId]] is `true` then the new flowId will be here else it will
+    *   use the flowId used when [[Subscriptions.eventsStreamed]] is called
     * @tparam T
     */
   final case class EventCallbackData[T](subscriptionEvent: SubscriptionEvent[T],
@@ -350,12 +349,10 @@ object Subscriptions {
                                         request: HttpRequest,
                                         flowId: Option[FlowId])
 
-  /**
-    *
-    * @param separateFlowId Whether to supply a new flowId for each callback request for committing cursors rather
-    *                       than using the flowId specified in [[Subscriptions.eventsStreamed]]. If you want to change
-    *                       how the flowId is generated, then you can override `generateFlowId`
-    *                       (by default it will generate a flowId from a random UUID)
+  /** @param separateFlowId
+    *   Whether to supply a new flowId for each callback request for committing cursors rather than using the flowId
+    *   specified in [[Subscriptions.eventsStreamed]]. If you want to change how the flowId is generated, then you can
+    *   override `generateFlowId` (by default it will generate a flowId from a random UUID)
     * @tparam T
     */
   sealed abstract class EventCallback[T](val separateFlowId: Boolean) {
@@ -364,16 +361,14 @@ object Subscriptions {
 
   object EventCallback {
 
-    /**
-      * Only executes the callback, expects the client to commit the cursor information
+    /** Only executes the callback, expects the client to commit the cursor information
       * @param eventCallback
       * @tparam T
       */
     final case class simple[T](eventCallback: EventCallbackData[T] => Unit, override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
-    /**
-      * Will immediately submit the cursor token, regardless if the callback succeeds or not
+    /** Will immediately submit the cursor token, regardless if the callback succeeds or not
       * @param eventCallback
       * @tparam T
       */
@@ -381,8 +376,7 @@ object Subscriptions {
                                       override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
-    /**
-      * Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
+    /** Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
       * @param eventCallback
       * @tparam T
       */
@@ -390,8 +384,7 @@ object Subscriptions {
                                          override val separateFlowId: Boolean = true)
         extends EventCallback[T](separateFlowId)
 
-    /**
-      * Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
+    /** Executes the callback in a try-catch block, only submitting the cursor if the predicate evaluates to true
       * @param eventCallback
       * @tparam T
       */
@@ -408,12 +401,14 @@ object Subscriptions {
 
   final case class ConnectionClosedCallback(connectionClosedCallback: ConnectionClosedData => Unit)
 
-  /**
-    *
-    * @param flowId Current flow id
-    * @param subscriptionId Current Stream Subscription id
-    * @param streamId Current Stream Id
-    * @param subscriptionsClient the current subscription client that is being used
+  /** @param flowId
+    *   Current flow id
+    * @param subscriptionId
+    *   Current Stream Subscription id
+    * @param streamId
+    *   Current Stream Id
+    * @param subscriptionsClient
+    *   the current subscription client that is being used
     */
   final case class EventStreamContext(flowId: FlowId,
                                       subscriptionId: SubscriptionId,
@@ -426,8 +421,8 @@ object Subscriptions {
       privateDecider(eventStreamContext)
   }
 
-  implicit def defaultEventStreamSupervisionDecider(
-      implicit executionContext: ExecutionContext): EventStreamSupervisionDecider =
+  implicit def defaultEventStreamSupervisionDecider(implicit
+      executionContext: ExecutionContext): EventStreamSupervisionDecider =
     EventStreamSupervisionDecider { eventStreamContext: EventStreamContext =>
       {
         case parsingException: EventJsonParsingException =>
@@ -468,15 +463,31 @@ object Subscriptions {
       }
     }
 
-  /**
-    * Configuration for a stream
-    * @param maxUncommittedEvents The amount of uncommitted events Nakadi will stream before pausing the stream. When in paused state and commit comes - the stream will resume. Minimal value is 1.
-    * @param batchLimit Maximum number of [[SubscriptionEvent]]'s in each chunk (and therefore per partition) of the stream. If 0 or unspecified will buffer Events indefinitely and flush on reaching of batchFlushTimeout
-    * @param streamLimit Maximum number of [[SubscriptionEvent]]'s in this stream (over all partitions being streamed in this connection). If 0 or undefined, will stream batches indefinitely. Stream initialization will fail if streamLimit is lower than batchLimit.
-    * @param batchFlushTimeout Maximum time in seconds to wait for the flushing of each chunk (per partition). If the amount of buffered Events reaches batchLimit before this batchFlushTimeout is reached, the messages are immediately flushed to the client and batch flush timer is reset. If 0 or undefined, will assume 30 seconds.
-    * @param streamTimeout Maximum time in seconds a stream will live before connection is closed by the server. If 0 or unspecified will stream indefinitely. If this timeout is reached, any pending messages (in the sense of stream_limit) will be flushed to the client. Stream initialization will fail if streamTimeout is lower than batchFlushTimeout.
-    * @param streamKeepAliveLimit Maximum number of empty keep alive batches to get in a row before closing the connection. If 0 or undefined will send keep alive messages indefinitely.
-    * @param commitTimeout Maximum amount of seconds that nakadi will be waiting for commit after sending a batch to a client. Setting commit_timeout to 0 is equal to setting it to the maximum allowed value - 60 seconds.
+  /** Configuration for a stream
+    * @param maxUncommittedEvents
+    *   The amount of uncommitted events Nakadi will stream before pausing the stream. When in paused state and commit
+    *   comes - the stream will resume. Minimal value is 1.
+    * @param batchLimit
+    *   Maximum number of [[SubscriptionEvent]] 's in each chunk (and therefore per partition) of the stream. If 0 or
+    *   unspecified will buffer Events indefinitely and flush on reaching of batchFlushTimeout
+    * @param streamLimit
+    *   Maximum number of [[SubscriptionEvent]] 's in this stream (over all partitions being streamed in this
+    *   connection). If 0 or undefined, will stream batches indefinitely. Stream initialization will fail if streamLimit
+    *   is lower than batchLimit.
+    * @param batchFlushTimeout
+    *   Maximum time in seconds to wait for the flushing of each chunk (per partition). If the amount of buffered Events
+    *   reaches batchLimit before this batchFlushTimeout is reached, the messages are immediately flushed to the client
+    *   and batch flush timer is reset. If 0 or undefined, will assume 30 seconds.
+    * @param streamTimeout
+    *   Maximum time in seconds a stream will live before connection is closed by the server. If 0 or unspecified will
+    *   stream indefinitely. If this timeout is reached, any pending messages (in the sense of stream_limit) will be
+    *   flushed to the client. Stream initialization will fail if streamTimeout is lower than batchFlushTimeout.
+    * @param streamKeepAliveLimit
+    *   Maximum number of empty keep alive batches to get in a row before closing the connection. If 0 or undefined will
+    *   send keep alive messages indefinitely.
+    * @param commitTimeout
+    *   Maximum amount of seconds that nakadi will be waiting for commit after sending a batch to a client. Setting
+    *   commit_timeout to 0 is equal to setting it to the maximum allowed value - 60 seconds.
     */
   final case class StreamConfig(maxUncommittedEvents: Option[Int] = None,
                                 batchLimit: Option[Int] = None,
@@ -486,8 +497,7 @@ object Subscriptions {
                                 streamKeepAliveLimit: Option[Int] = None,
                                 commitTimeout: Option[FiniteDuration] = None)
 
-  /**
-    * Nakadi stream represented as an akka-stream [[Source]]
+  /** Nakadi stream represented as an akka-stream [[Source]]
     * @param streamId
     * @param source
     * @param request
@@ -499,43 +509,53 @@ object Subscriptions {
 
 }
 
-/**
-  * Exception that is passed if the stream is cancelled by the client
+/** Exception that is passed if the stream is cancelled by the client
   */
 final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: StreamId) extends Exception {
   override def getMessage =
     s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
 }
 
-case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
-    implicit kanadiHttpConfig: HttpConfig,
+case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+    kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
     extends SubscriptionsInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Subscriptions])
   private val baseUri_                               = Uri(baseUri.toString)
 
-  /**
-    * This endpoint creates a subscription for [[org.zalando.kanadi.models.EventTypeName]]'s. The subscription is needed to be able to consume events from EventTypes in a high level way when Nakadi stores the offsets and manages the rebalancing of consuming clients. The subscription is identified by its key parameters (owning_application, event_types, consumer_group). If this endpoint is invoked several times with the same key subscription properties in body (order of even_types is not important) - the subscription will be created only once and for all other calls it will just return the subscription that was already created.
-    * @param subscription [[Subscription]] is a high level consumption unit. Subscriptions allow applications to easily scale the number of clients by managing consumed event offsets and distributing load between instances. The key properties that identify subscription are owningApplication, eventTypes and consumerGroup. It's not possible to have two different subscriptions with these properties being the same.
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** This endpoint creates a subscription for [[org.zalando.kanadi.models.EventTypeName]] 's. The subscription is
+    * needed to be able to consume events from EventTypes in a high level way when Nakadi stores the offsets and manages
+    * the rebalancing of consuming clients. The subscription is identified by its key parameters (owning_application,
+    * event_types, consumer_group). If this endpoint is invoked several times with the same key subscription properties
+    * in body (order of even_types is not important) - the subscription will be created only once and for all other
+    * calls it will just return the subscription that was already created.
+    * @param subscription
+    *   [[Subscription]] is a high level consumption unit. Subscriptions allow applications to easily scale the number
+    *   of clients by managing consumed event offsets and distributing load between instances. The key properties that
+    *   identify subscription are owningApplication, eventTypes and consumerGroup. It's not possible to have two
+    *   different subscriptions with these properties being the same.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def create(subscription: Subscription)(implicit flowId: FlowId = randomFlowId(),
-                                         executionContext: ExecutionContext): Future[Subscription] = {
+  def create(subscription: Subscription)(implicit
+      flowId: FlowId = randomFlowId(),
+      executionContext: ExecutionContext): Future[Subscription] = {
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions")
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
       entity   <- Marshal(subscription).to[RequestEntity]
-      request  = HttpRequest(HttpMethods.POST, uri, headers, entity)
-      _        = logger.debug(request.toString)
+      request   = HttpRequest(HttpMethods.POST, uri, headers, entity)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
@@ -547,52 +567,64 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Attempts to create a subscription if it doesn't already exist, else it will return the currently existing subscription
+  /** Attempts to create a subscription if it doesn't already exist, else it will return the currently existing
+    * subscription
     * @param subscription
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def createIfDoesntExist(subscription: Subscription)(
-      implicit flowId: FlowId = randomFlowId(),
+  def createIfDoesntExist(subscription: Subscription)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Subscription] =
     for {
       subscriptions <- list(Some(subscription.owningApplication), subscription.eventTypes)
       collect = subscriptions.items.filter { returningSubscription =>
-        val consumerGroupCheck = subscription.consumerGroup match {
-          case None => true
-          case consumerGroup =>
-            returningSubscription.consumerGroup == consumerGroup
-        }
+                  val consumerGroupCheck = subscription.consumerGroup match {
+                    case None => true
+                    case consumerGroup =>
+                      returningSubscription.consumerGroup == consumerGroup
+                  }
 
-        val idCheck = subscription.id match {
-          case None => true
-          case id =>
-            returningSubscription.id == id
-        }
+                  val idCheck = subscription.id match {
+                    case None => true
+                    case id =>
+                      returningSubscription.id == id
+                  }
 
-        consumerGroupCheck && idCheck
-      }
+                  consumerGroupCheck && idCheck
+                }
 
       createIfEmpty <- collect.headOption.map(Future.successful).getOrElse(create(subscription))
 
     } yield createIfEmpty
 
-  /**
-    * Lists all subscriptions that exist in a system. List is ordered by creation date/time descending (newest subscriptions come first).
-    * @param owningApplication Parameter to filter subscriptions list by owning application. If not specified - the result list will contain subscriptions of all owning applications.
-    * @param eventType Parameter to filter subscriptions list by event types. If not specified - the result list will contain subscriptions for all event types. It's possible to provide multiple values like `List(EventTypeName("et1"),EventTypeName("et2"))`, in this case it will show subscriptions having both "et1" and "et2"
-    * @param limit maximum number of subscriptions retuned in one page
-    * @param offset page offset
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** Lists all subscriptions that exist in a system. List is ordered by creation date/time descending (newest
+    * subscriptions come first).
+    * @param owningApplication
+    *   Parameter to filter subscriptions list by owning application. If not specified - the result list will contain
+    *   subscriptions of all owning applications.
+    * @param eventType
+    *   Parameter to filter subscriptions list by event types. If not specified - the result list will contain
+    *   subscriptions for all event types. It's possible to provide multiple values like
+    *   `List(EventTypeName("et1"),EventTypeName("et2"))`, in this case it will show subscriptions having both "et1" and
+    *   "et2"
+    * @param limit
+    *   maximum number of subscriptions retuned in one page
+    * @param offset
+    *   page offset
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
   def list(owningApplication: Option[String] = None,
            eventType: Option[List[EventTypeName]] = None,
            limit: Option[Int] = None,
-           offset: Option[Int] = None)(
-      implicit flowId: FlowId = randomFlowId(),
+           offset: Option[Int] = None)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[SubscriptionQuery] = {
     val eventsTypesQuery = eventType match {
@@ -610,21 +642,21 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           Query(
             Seq("limit"              -> limit.map(_.toString),
                 "offset"             -> offset.map(_.toString),
-                "owning_application" -> owningApplication).collect {
-              case (k, Some(v)) => (k, v)
+                "owning_application" -> owningApplication).collect { case (k, Some(v)) =>
+              (k, v)
             } ++ eventsTypesQuery: _*)
         )
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
-      request  = HttpRequest(HttpMethods.GET, uri, headers)
-      _        = logger.debug(request.toString)
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
+      request   = HttpRequest(HttpMethods.GET, uri, headers)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
@@ -638,14 +670,16 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Returns a subscription identified by id.
-    * @param subscriptionId Id of subscription.
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** Returns a subscription identified by id.
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def get(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
+  def get(subscriptionId: SubscriptionId)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[Subscription]] = {
     val uri = baseUri_
@@ -653,14 +687,14 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
-      request  = HttpRequest(HttpMethods.GET, uri, headers)
-      _        = logger.debug(request.toString)
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
+      request   = HttpRequest(HttpMethods.GET, uri, headers)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {
@@ -676,14 +710,16 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Deletes a subscription.
-    * @param subscriptionId Id of subscription.
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** Deletes a subscription.
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def delete(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
+  def delete(subscriptionId: SubscriptionId)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
     val uri = baseUri_
@@ -691,14 +727,14 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
-      request  = HttpRequest(HttpMethods.DELETE, uri, headers)
-      _        = logger.debug(request.toString)
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
+      request   = HttpRequest(HttpMethods.DELETE, uri, headers)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
@@ -710,28 +746,30 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Exposes the currently committed offsets of a subscription.
-    * @param subscriptionId Id of subscription.
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** Exposes the currently committed offsets of a subscription.
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def cursors(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
+  def cursors(subscriptionId: SubscriptionId)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionCursor]] = {
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
-      request  = HttpRequest(HttpMethods.GET, uri, headers)
-      _        = logger.debug(request.toString)
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
+      request   = HttpRequest(HttpMethods.GET, uri, headers)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         response.status match {
@@ -748,24 +786,34 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Endpoint for committing offsets of the subscription. If there is uncommitted data, and no commits happen for 60 seconds, then Nakadi will consider the client to be gone, and will close the connection. As long as no events are sent, the client does not need to commit.
+  /** Endpoint for committing offsets of the subscription. If there is uncommitted data, and no commits happen for 60
+    * seconds, then Nakadi will consider the client to be gone, and will close the connection. As long as no events are
+    * sent, the client does not need to commit.
     *
-    * If the connection is closed, the client has 60 seconds to commit the events it received, from the moment they were sent. After that, the connection will be considered closed, and it will not be possible to do commit with that X-Nakadi-StreamId anymore.
+    * If the connection is closed, the client has 60 seconds to commit the events it received, from the moment they were
+    * sent. After that, the connection will be considered closed, and it will not be possible to do commit with that
+    * X-Nakadi-StreamId anymore.
     *
-    * When a batch is committed that also automatically commits all previous batches that were sent in a stream for this partition.
-    * @param subscriptionId Id of subscription
+    * When a batch is committed that also automatically commits all previous batches that were sent in a stream for this
+    * partition.
+    * @param subscriptionId
+    *   Id of subscription
     * @param subscriptionCursor
-    * @param streamId Id of stream which client uses to read events. It is not possible to make a commit for a terminated or none-existing stream. Also the client can't commit something which was not sent to his stream.
-    * @param eventBatch Whether it's an event batch or not (e.g. keep-alive).
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+    * @param streamId
+    *   Id of stream which client uses to read events. It is not possible to make a commit for a terminated or
+    *   none-existing stream. Also the client can't commit something which was not sent to his stream.
+    * @param eventBatch
+    *   Whether it's an event batch or not (e.g. keep-alive).
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
   def commitCursors(subscriptionId: SubscriptionId,
                     subscriptionCursor: SubscriptionCursor,
                     streamId: StreamId,
-                    eventBatch: Boolean = true)(
-      implicit flowId: FlowId = randomFlowId(),
+                    eventBatch: Boolean = true)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[CommitCursorResponse]] = {
     val uri = baseUri_
@@ -775,17 +823,17 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(streamHeaders)
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: streamHeaders
-                    }
-                }
-      entity  <- Marshal(subscriptionCursor).to[RequestEntity]
+                   case None => Future.successful(streamHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: streamHeaders
+                     }
+                 }
+      entity <- Marshal(subscriptionCursor).to[RequestEntity]
       request = HttpRequest(HttpMethods.POST, uri, headers, entity)
       _       = logger.debug(request.toString)
       response <- if (eventBatch) http.singleRequest(request).map(decodeCompressed)
-                 else Future.successful(HttpResponse(StatusCodes.NoContent))
+                  else Future.successful(HttpResponse(StatusCodes.NoContent))
       result <- {
         if (response.status == StatusCodes.NoContent) {
           response.discardEntityBytes()
@@ -805,8 +853,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
   }
 
-  def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(
-      implicit flowId: FlowId = randomFlowId(),
+  def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursor] = None)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Boolean] = {
     val uri = baseUri_
@@ -814,12 +862,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
       entity <- {
         subscriptionCursor match {
           case Some(cursor) =>
@@ -828,8 +876,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             Future.successful(HttpEntity.Empty)
         }
       }
-      request  = HttpRequest(HttpMethods.PATCH, uri, headers, entity)
-      _        = logger.debug(request.toString)
+      request   = HttpRequest(HttpMethods.PATCH, uri, headers, entity)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {
@@ -880,27 +928,43 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         .decode[SubscriptionEventInfo] ~> zipper.in0
       broadcast ~> CirceStreamSupport
         .decode[Success[SubscriptionEventData[T]]]
-        .recover {
-          case parsingException: CirceStreamSupport.JsonParsingException =>
-            Failure(parsingException)
+        .recover { case parsingException: CirceStreamSupport.JsonParsingException =>
+          Failure(parsingException)
         } ~> zipper.in1
 
       FlowShape(broadcast.in, zipper.out)
     }
 
-  /**
-    * NOTE: This is the strict version of [[eventsStreamed]], unless you know what you are doing, you should only be
-    * using this method for debugging purposes. If you don't set streamTimeout, this function will never complete, and you will
-    * likely run out of memory on your machine.
+  /** NOTE: This is the strict version of [[eventsStreamed]], unless you know what you are doing, you should only be
+    * using this method for debugging purposes. If you don't set streamTimeout, this function will never complete, and
+    * you will likely run out of memory on your machine.
     *
-    * @param subscriptionId Id of subscription.
-    * @param maxUncommittedEvents The amount of uncommitted events Nakadi will stream before pausing the stream. When in paused state and commit comes - the stream will resume. Minimal value is 1.
-    * @param batchLimit Maximum number of [[SubscriptionEvent]]'s in each chunk (and therefore per partition) of the stream. If 0 or unspecified will buffer Events indefinitely and flush on reaching of batchFlushTimeout
-    * @param streamLimit Maximum number of [[SubscriptionEvent]]'s in this stream (over all partitions being streamed in this connection). If 0 or undefined, will stream batches indefinitely. Stream initialization will fail if streamLimit is lower than batchLimit.
-    * @param batchFlushTimeout Maximum time in seconds to wait for the flushing of each chunk (per partition). If the amount of buffered Events reaches batchLimit before this batchFlushTimeout is reached, the messages are immediately flushed to the client and batch flush timer is reset. If 0 or undefined, will assume 30 seconds.
-    * @param streamTimeout Maximum time in seconds a stream will live before connection is closed by the server. If 0 or unspecified will stream indefinitely. If this timeout is reached, any pending messages (in the sense of stream_limit) will be flushed to the client. Stream initialization will fail if streamTimeout is lower than batchFlushTimeout.
-    * @param streamKeepAliveLimit Maximum number of empty keep alive batches to get in a row before closing the connection. If 0 or undefined will send keep alive messages indefinitely.
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param maxUncommittedEvents
+    *   The amount of uncommitted events Nakadi will stream before pausing the stream. When in paused state and commit
+    *   comes - the stream will resume. Minimal value is 1.
+    * @param batchLimit
+    *   Maximum number of [[SubscriptionEvent]] 's in each chunk (and therefore per partition) of the stream. If 0 or
+    *   unspecified will buffer Events indefinitely and flush on reaching of batchFlushTimeout
+    * @param streamLimit
+    *   Maximum number of [[SubscriptionEvent]] 's in this stream (over all partitions being streamed in this
+    *   connection). If 0 or undefined, will stream batches indefinitely. Stream initialization will fail if streamLimit
+    *   is lower than batchLimit.
+    * @param batchFlushTimeout
+    *   Maximum time in seconds to wait for the flushing of each chunk (per partition). If the amount of buffered Events
+    *   reaches batchLimit before this batchFlushTimeout is reached, the messages are immediately flushed to the client
+    *   and batch flush timer is reset. If 0 or undefined, will assume 30 seconds.
+    * @param streamTimeout
+    *   Maximum time in seconds a stream will live before connection is closed by the server. If 0 or unspecified will
+    *   stream indefinitely. If this timeout is reached, any pending messages (in the sense of stream_limit) will be
+    *   flushed to the client. Stream initialization will fail if streamTimeout is lower than batchFlushTimeout.
+    * @param streamKeepAliveLimit
+    *   Maximum number of empty keep alive batches to get in a row before closing the connection. If 0 or undefined will
+    *   send keep alive messages indefinitely.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @tparam T
     * @return
     */
@@ -910,8 +974,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                             streamLimit: Option[Int] = None,
                             batchFlushTimeout: Option[FiniteDuration] = None,
                             streamTimeout: Option[FiniteDuration] = None,
-                            streamKeepAliveLimit: Option[Int] = None)(
-      implicit decoder: Decoder[List[Event[T]]],
+                            streamKeepAliveLimit: Option[Int] = None)(implicit
+      decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[List[SubscriptionEvent[T]]] = {
@@ -927,19 +991,19 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             "stream_timeout"         -> streamTimeout.map(_.toSeconds.toString),
             "stream_keep_alive_limit" -> streamKeepAliveLimit
               .map(_.toString)
-          ).collect {
-            case (k, Some(v)) => (k, v)
+          ).collect { case (k, Some(v)) =>
+            (k, v)
           })
       )
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
       request = HttpRequest(HttpMethods.GET, uri, headers)
       _       = logger.debug(request.toString)
       // Create a single connection to avoid the pool
@@ -952,10 +1016,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         else http.outgoingConnection(host, port)
       }
       response <- Source
-                   .single(request)
-                   .via(connectionFlow)
-                   .runWith(Sink.head)
-                   .map(decodeCompressed)
+                    .single(request)
+                    .via(connectionFlow)
+                    .runWith(Sink.head)
+                    .map(decodeCompressed)
       result <- {
         response.status match {
           case StatusCodes.NotFound =>
@@ -972,8 +1036,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             if (response.status.isSuccess()) {
               for {
                 string <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                           .to[String]
-                result <- {
+                            .to[String]
+                result <-
                   Source(
                     string
                       .grouped(kanadiHttpConfig.singleStringChunkLength)
@@ -987,7 +1051,6 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                     }
                     .limit(kanadiHttpConfig.eventListChunkLength.toLong)
                     .runWith(Sink.seq)
-                }
               } yield result.toList
             } else
               processNotSuccessful(request, response)
@@ -1017,21 +1080,20 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
             "stream_timeout"          -> streamConfig.streamTimeout.map(_.toSeconds.toString),
             "stream_keep_alive_limit" -> streamConfig.streamKeepAliveLimit.map(_.toString),
             "commit_timeout"          -> streamConfig.commitTimeout.map(_.toSeconds.toString)
-          ).collect {
-            case (k, Some(v)) => (k, v)
+          ).collect { case (k, Some(v)) =>
+            (k, v)
           })
       )
 
   private def getBaseHeaders(implicit flowId: FlowId): List[HttpHeader] =
     baseHeaders(flowId) :+ Connection("Keep-Alive")
 
-  /**
-    * Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between
+  /** Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between
     * streams of one subscription. The minimal consumption unit is a partition, so it is possible to start as many
     * streams as the total number of partitions in event-types of this subscription. The rebalance currently only
-    * operates with the number of partitions so the amount of data in event-types/partitions is not considered
-    * during autorebalance. The position of the consumption is managed by Nakadi. The client is required to commit
-    * the cursors he gets in a stream.
+    * operates with the number of partitions so the amount of data in event-types/partitions is not considered during
+    * autorebalance. The position of the consumption is managed by Nakadi. The client is required to commit the cursors
+    * he gets in a stream.
     *
     * This exposes the stream as a [[Source]], which also means you need to handle adding the stream to the kill switch
     * configuration using the [[addStreamToKillSwitch]] method if you plan on using the [[closeHttpConnection]] to kill
@@ -1051,8 +1113,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                                 Subscriptions.ConnectionClosedCallback { _ =>
                                   ()
                                 },
-                              streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(
-      implicit
+                              streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
       executionContext: ExecutionContext,
@@ -1071,9 +1132,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         cancelledByClient
       )
       connectionClosedCallback.connectionClosedCallback(connectionClosedData)
-      try {
-        killSwitches.remove((subscriptionId, streamId))
-      } catch {
+      try killSwitches.remove((subscriptionId, streamId))
+      catch {
         case NonFatal(e) =>
           logger.warn(
             s"SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}, error removing HTTP connection from pool",
@@ -1083,12 +1143,12 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(streamHeaders)
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: streamHeaders
-                    }
-                }
+                   case None => Future.successful(streamHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: streamHeaders
+                     }
+                 }
 
       request = HttpRequest(HttpMethods.GET, uri, headers)
       _       = logger.debug(request.toString)
@@ -1103,10 +1163,10 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       }
 
       response <- Source
-                   .single(request)
-                   .via(connectionFlow)
-                   .runWith(Sink.head)
-                   .map(decodeCompressed)
+                    .single(request)
+                    .via(connectionFlow)
+                    .runWith(Sink.head)
+                    .map(decodeCompressed)
       _ = logger.debug(response.toString)
       result <- {
         if (response.status.isSuccess()) {
@@ -1162,21 +1222,38 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     } yield result
   }
 
-  /**
-    * Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between streams of one subscription. The minimal consumption unit is a partition, so it is possible to start as many streams as the total number of partitions in event-types of this subscription. The rebalance currently only operates with the number of partitions so the amount of data in event-types/partitions is not considered during autorebalance. The position of the consumption is managed by Nakadi. The client is required to commit the cursors he gets in a stream.
+  /** Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between
+    * streams of one subscription. The minimal consumption unit is a partition, so it is possible to start as many
+    * streams as the total number of partitions in event-types of this subscription. The rebalance currently only
+    * operates with the number of partitions so the amount of data in event-types/partitions is not considered during
+    * autorebalance. The position of the consumption is managed by Nakadi. The client is required to commit the cursors
+    * he gets in a stream.
     *
-    * This call lets you register a callback which gets execute every time an event is streamed. There are different types of callbacks depending on how you want to handle failure. The timeout for the akka http request is the same as streamTimeout with a small buffer. Note that typically clients
-    * should be using [[eventsStreamedManaged]] as this will handle disconnects/reconnects
+    * This call lets you register a callback which gets execute every time an event is streamed. There are different
+    * types of callbacks depending on how you want to handle failure. The timeout for the akka http request is the same
+    * as streamTimeout with a small buffer. Note that typically clients should be using [[eventsStreamedManaged]] as
+    * this will handle disconnects/reconnects
     *
-    * @param subscriptionId Id of subscription.
-    * @param eventCallback The callback which gets executed every time an event is processed via the stream
-    * @param connectionClosedCallback The callback which gets executed when the connection is closed, you typically want to reopen the subscription
-    * @param streamConfig Configuration for the stream
-    * @param eventStreamSupervisionDecider The supervision decider which decides what to do when an error is thrown in the stream. Default behaviour is if its a JSON Circe decoding exception on event data, it will commit the cursor, log the error and resume the stream, otherwise it will log the error and restart the stream.
-    * @param modifySourceFunction Allows you to specify a function which modifies the underlying stream
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param eventCallback
+    *   The callback which gets executed every time an event is processed via the stream
+    * @param connectionClosedCallback
+    *   The callback which gets executed when the connection is closed, you typically want to reopen the subscription
+    * @param streamConfig
+    *   Configuration for the stream
+    * @param eventStreamSupervisionDecider
+    *   The supervision decider which decides what to do when an error is thrown in the stream. Default behaviour is if
+    *   its a JSON Circe decoding exception on event data, it will commit the cursor, log the error and resume the
+    *   stream, otherwise it will log the error and restart the stream.
+    * @param modifySourceFunction
+    *   Allows you to specify a function which modifies the underlying stream
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @tparam T
-    * @return The StreamId for this Stream
+    * @return
+    *   The StreamId for this Stream
     */
   def eventsStreamed[T](subscriptionId: SubscriptionId,
                         eventCallback: Subscriptions.EventCallback[T],
@@ -1187,8 +1264,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                         streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig(),
                         modifySourceFunction: Option[
                           Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T],
-                                                                                   UniqueKillSwitch]] = None)(
-      implicit decoder: Decoder[List[Event[T]]],
+                                                                                   UniqueKillSwitch]] = None)(implicit
+      decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
@@ -1269,22 +1346,23 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         case Subscriptions.EventCallback.successPredicate(cb, _) =>
           logger.debug(s"$logDetails Executing callback")
 
-          val predicate = try {
-            val f = Some(
-              cb(
-                Subscriptions.EventCallbackData(
-                  subscriptionEvent,
-                  streamId,
-                  request,
-                  currentFlowId
-                )))
-            logCallback()
-            f
-          } catch {
-            case NonFatal(e) =>
-              logCallbackFailure(e)
-              None
-          }
+          val predicate =
+            try {
+              val f = Some(
+                cb(
+                  Subscriptions.EventCallbackData(
+                    subscriptionEvent,
+                    streamId,
+                    request,
+                    currentFlowId
+                  )))
+              logCallback()
+              f
+            } catch {
+              case NonFatal(e) =>
+                logCallbackFailure(e)
+                None
+            }
 
           predicate match {
             case Some(true) =>
@@ -1306,22 +1384,23 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           }
 
         case Subscriptions.EventCallback.successPredicateFuture(cb, _) =>
-          val eventualPredicate = try {
-            val f = Some(
-              cb(
-                Subscriptions.EventCallbackData(
-                  subscriptionEvent,
-                  streamId,
-                  request,
-                  currentFlowId
-                )))
-            logCallback()
-            f
-          } catch {
-            case NonFatal(e) =>
-              logCallbackFailure(e)
-              None
-          }
+          val eventualPredicate =
+            try {
+              val f = Some(
+                cb(
+                  Subscriptions.EventCallbackData(
+                    subscriptionEvent,
+                    streamId,
+                    request,
+                    currentFlowId
+                  )))
+              logCallback()
+              f
+            } catch {
+              case NonFatal(e) =>
+                logCallbackFailure(e)
+                None
+            }
 
           eventualPredicate match {
             case Some(predicate) =>
@@ -1361,8 +1440,7 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     }
   }
 
-  /**
-    * Indefinitely reconnect to nakadi
+  /** Indefinitely reconnect to nakadi
     */
   private[this] def reconnect[T](
       subscriptionId: SubscriptionId,
@@ -1371,8 +1449,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       streamConfig: Subscriptions.StreamConfig,
       reconnectDelay: FiniteDuration,
       modifySourceFunction: Option[
-        Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T], UniqueKillSwitch]])(
-      implicit decoder: Decoder[List[Event[T]]],
+        Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T], UniqueKillSwitch]])(implicit
+      decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
@@ -1386,38 +1464,49 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
           streamConfig,
           modifySourceFunction
         ))
-      .recoverWith {
-        case NonFatal(e) =>
-          logger.info(
-            s"Reconnecting failed, retry again in ${reconnectDelay.toString()}, SubscriptionId: ${subscriptionId.id.toString}",
-            e.getCause
-          )
-          reconnect(subscriptionId,
-                    eventCallback,
-                    connectionClosedCallback,
-                    streamConfig,
-                    reconnectDelay,
-                    modifySourceFunction)
+      .recoverWith { case NonFatal(e) =>
+        logger.info(
+          s"Reconnecting failed, retry again in ${reconnectDelay.toString()}, SubscriptionId: ${subscriptionId.id.toString}",
+          e.getCause
+        )
+        reconnect(subscriptionId,
+                  eventCallback,
+                  connectionClosedCallback,
+                  streamConfig,
+                  reconnectDelay,
+                  modifySourceFunction)
       }
 
-  /**
-    * Creates an event stream using [[eventsStreamed]] however also manages disconnects and reconnects from the server. Typically clients
-    * want to use this as they don't need to handle these situations manually.
+  /** Creates an event stream using [[eventsStreamed]] however also manages disconnects and reconnects from the server.
+    * Typically clients want to use this as they don't need to handle these situations manually.
     *
-    * This uses [[akka.pattern.after]] to recreate the streams in the case of server disconnects/no empty slots and cursor resets. The
-    * timeouts respectively can be configured with [[HttpConfig.serverDisconnectRetryDelay]] and [[HttpConfig.noEmptySlotsCursorResetRetryDelay]].
-    * The `connectionClosedCallback` parameter is still respected.
+    * This uses [[akka.pattern.after]] to recreate the streams in the case of server disconnects/no empty slots and
+    * cursor resets. The timeouts respectively can be configured with [[HttpConfig.serverDisconnectRetryDelay]] and
+    * [[HttpConfig.noEmptySlotsCursorResetRetryDelay]]. The `connectionClosedCallback` parameter is still respected.
     *
-    * NOTE: If the connection is closed by the client explicitly using the [[closeHttpConnection]] method then [[eventsStreamedManaged]] will not re-establish a connection.
+    * NOTE: If the connection is closed by the client explicitly using the [[closeHttpConnection]] method then
+    * [[eventsStreamedManaged]] will not re-establish a connection.
     *
-    * @param subscriptionId Id of subscription.
-    * @param eventCallback The callback which gets executed every time an event is processed via the stream
-    * @param connectionClosedCallback The callback which gets executed when the connection is closed, you typically want to reopen the subscription. NOTE: Don't use the parameter to reconnect the stream, this is automatically handled
-    * @param streamConfig Configuration for the stream
-    * @param eventStreamSupervisionDecider The supervision decider which decides what to do when an error is thrown in the stream. Default behaviour is if its a JSON Circe decoding exception on event data, it will commit the cursor, log the error and resume the stream, otherwise it will log the error and restart the stream.
-    * @param modifySourceFunction Allows you to specify a function which modifies the underlying stream
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
-    * @return Initial Stream Id
+    * @param subscriptionId
+    *   Id of subscription.
+    * @param eventCallback
+    *   The callback which gets executed every time an event is processed via the stream
+    * @param connectionClosedCallback
+    *   The callback which gets executed when the connection is closed, you typically want to reopen the subscription.
+    *   NOTE: Don't use the parameter to reconnect the stream, this is automatically handled
+    * @param streamConfig
+    *   Configuration for the stream
+    * @param eventStreamSupervisionDecider
+    *   The supervision decider which decides what to do when an error is thrown in the stream. Default behaviour is if
+    *   its a JSON Circe decoding exception on event data, it will commit the cursor, log the error and resume the
+    *   stream, otherwise it will log the error and restart the stream.
+    * @param modifySourceFunction
+    *   Allows you to specify a function which modifies the underlying stream
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
+    * @return
+    *   Initial Stream Id
     */
   def eventsStreamedManaged[T](subscriptionId: SubscriptionId,
                                eventCallback: Subscriptions.EventCallback[T],
@@ -1429,7 +1518,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
                                modifySourceFunction: Option[
                                  Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T],
                                                                                           UniqueKillSwitch]] = None)(
-      implicit decoder: Decoder[List[Event[T]]],
+      implicit
+      decoder: Decoder[List[Event[T]]],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
@@ -1457,31 +1547,27 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       streamConfig,
       modifySourceFunction
     ).map { streamId =>
-        logger.info(
-          s"Initialized Nakadi Stream with StreamId: ${streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
-        streamId
-      }
-      .recoverWith {
-        case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
-          logger.info(
-            s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
-              .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
+      logger.info(
+        s"Initialized Nakadi Stream with StreamId: ${streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
+      streamId
+    }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
+      logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
+        .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
 
-          reconnect(subscriptionId,
-                    eventCallback,
-                    connectionClosedCallback,
-                    streamConfig,
-                    kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay,
-                    modifySourceFunction)
-      }
+      reconnect(subscriptionId,
+                eventCallback,
+                connectionClosedCallback,
+                streamConfig,
+                kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay,
+                modifySourceFunction)
+    }
 
   def eventsStreamedSourceManaged[T](subscriptionId: SubscriptionId,
                                      connectionClosedCallback: Subscriptions.ConnectionClosedCallback =
                                        Subscriptions.ConnectionClosedCallback { _ =>
                                          ()
                                        },
-                                     streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(
-      implicit
+                                     streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(implicit
       decoder: Decoder[List[Event[T]]],
       flowId: FlowId,
       executionContext: ExecutionContext,
@@ -1492,29 +1578,26 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       connectionClosedCallback,
       streamConfig
     ).map { nakadiSource =>
-        logger.info(
-          s"Initialized Nakadi Stream with StreamId: ${nakadiSource.streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
-        nakadiSource
-      }
-      .recoverWith {
-        case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
-          logger.info(
-            s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
-              .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
-          akka.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
-            eventsStreamedSourceManaged[T](
-              subscriptionId,
-              connectionClosedCallback,
-              streamConfig
-            ))
-      }
+      logger.info(
+        s"Initialized Nakadi Stream with StreamId: ${nakadiSource.streamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
+      nakadiSource
+    }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
+      logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
+        .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
+      akka.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
+        eventsStreamedSourceManaged[T](
+          subscriptionId,
+          connectionClosedCallback,
+          streamConfig
+        ))
+    }
 
-  /**
-    * Closes the underlying http connection for a subscriptionId/streamId.
+  /** Closes the underlying http connection for a subscriptionId/streamId.
     * @param subscriptionId
     * @param streamId
-    * @return `true` If there was a reference to a connection (i.e. there was a stream running) or `false` if there was
-    *        no reference. Note that cancelling the http connection will execute the [[eventsStreamed#connectionClosedCallback]]
+    * @return
+    *   `true` If there was a reference to a connection (i.e. there was a stream running) or `false` if there was no
+    *   reference. Note that cancelling the http connection will execute the [[eventsStreamed#connectionClosedCallback]]
     */
   def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean =
     killSwitches.get((subscriptionId, streamId)) match {
@@ -1525,14 +1608,16 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         false
     }
 
-  /**
-    * exposes statistics of specified subscription
-    * @param subscriptionId Id of subscription
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+  /** exposes statistics of specified subscription
+    * @param subscriptionId
+    *   Id of subscription
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @return
     */
-  def stats(subscriptionId: SubscriptionId)(
-      implicit flowId: FlowId = randomFlowId(),
+  def stats(subscriptionId: SubscriptionId)(implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]] = {
     val uri = baseUri_
@@ -1540,14 +1625,14 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders(flowId))
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders(flowId)
-                    }
-                }
-      request  = HttpRequest(HttpMethods.GET, uri, headers)
-      _        = logger.debug(request.toString)
+                   case None => Future.successful(baseHeaders(flowId))
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     }
+                 }
+      request   = HttpRequest(HttpMethods.GET, uri, headers)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status == StatusCodes.NotFound) {

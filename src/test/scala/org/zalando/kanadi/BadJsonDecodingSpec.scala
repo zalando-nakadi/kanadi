@@ -130,19 +130,19 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       for {
         subscriptionId <- currentSubscriptionId.future
         stream <- subscriptionsClient.eventsStreamedManaged[SomeBadEvent](
-                   subscriptionId,
-                   EventCallback.successAlways { eventCallbackData =>
-                     eventCallbackData.subscriptionEvent.events
-                       .getOrElse(List.empty)
-                       .foreach { _ =>
-                         ()
-                       }
-                   },
-                   ConnectionClosedCallback { connectionClosedData =>
-                     // Connection will be already closed
-                     subscriptionClosed = true
-                   }
-                 )
+                    subscriptionId,
+                    EventCallback.successAlways { eventCallbackData =>
+                      eventCallbackData.subscriptionEvent.events
+                        .getOrElse(List.empty)
+                        .foreach { _ =>
+                          ()
+                        }
+                    },
+                    ConnectionClosedCallback { connectionClosedData =>
+                      // Connection will be already closed
+                      subscriptionClosed = true
+                    }
+                  )
       } yield stream
 
     stream.onComplete {
@@ -175,9 +175,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
-  def receiveBadEvent = (name: String) => {
-    receivedBadEvent.future must be_==(()).await(0, timeout = 5 minutes)
-  }
+  def receiveBadEvent = (name: String) => receivedBadEvent.future must be_==(()).await(0, timeout = 5 minutes)
 
   def closeConnection = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()

@@ -113,27 +113,25 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
                 val (_, fail) = randomSplit(events)
                 // Lets make sure event 10 will always fail with a validation error
                 val (validationFailedEvents, serverFailedEvents) = fail.partition(_.data.order == 10)
-                val retryFailed                                  = State.RetryFailed(serverFailedEvents, validationFailedEvents)
+                val retryFailed = State.RetryFailed(serverFailedEvents, validationFailedEvents)
 
                 state = retryFailed
 
                 complete(
                   (StatusCodes.MultiStatus,
-                   retryFailed.serverFailedEvents.map(
-                     event =>
-                       Events.BatchItemResponse(
-                         event.getMetadata.map(_.eid),
-                         Events.PublishingStatus.Aborted,
-                         Some(Events.Step.Enriching),
-                         None
-                       )) ++ retryFailed.validationFailedEvent.map(
-                     event =>
-                       Events.BatchItemResponse(
-                         event.getMetadata.map(_.eid),
-                         Events.PublishingStatus.Aborted,
-                         Some(Events.Step.Validating),
-                         None
-                       ))))
+                   retryFailed.serverFailedEvents.map(event =>
+                     Events.BatchItemResponse(
+                       event.getMetadata.map(_.eid),
+                       Events.PublishingStatus.Aborted,
+                       Some(Events.Step.Enriching),
+                       None
+                     )) ++ retryFailed.validationFailedEvent.map(event =>
+                     Events.BatchItemResponse(
+                       event.getMetadata.map(_.eid),
+                       Events.PublishingStatus.Aborted,
+                       Some(Events.Step.Validating),
+                       None
+                     ))))
               case rf: State.RetryFailed =>
                 if (runForever) {
                   val failedEvents = rf.failedEvents.map { event =>
@@ -161,20 +159,18 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
   def retryPartialEvents = {
     val future = for {
       bind <- Http(system)
-               .newServerAt("localhost", port)
-               .bind(routes(false))
-               .map(
-                 _.addToCoordinatedShutdown(
-                   10 seconds
-                 ))
+                .newServerAt("localhost", port)
+                .bind(routes(false))
+                .map(
+                  _.addToCoordinatedShutdown(
+                    10 seconds
+                  ))
       _             <- eventsClient.publish(EventTypeName(TestEvent), events)
       failedEvents  <- retryWithFailedEvents
       retriedEvents <- retryWithRetriedEvents
       _             <- bind.terminate(10 seconds)
-    } yield {
-      failedEvents.failedEvents.nonEmpty &&
+    } yield failedEvents.failedEvents.nonEmpty &&
       failedEvents.serverFailedEvents.toSet == retriedEvents.toSet
-    }
 
     future must beTrue.await(3, 1 minute)
   }
@@ -182,21 +178,20 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
   def retryForeverAndFail = {
     val future = for {
       bind <- Http(system)
-               .newServerAt("localhost", port)
-               .bind(routes(true))
-               .map(
-                 _.addToCoordinatedShutdown(
-                   10 seconds
-                 ))
-      _ <- eventsClient.publish(EventTypeName(TestEvent), events).recoverWith {
-            case e => bind.terminate(10 seconds).flatMap(_ => Future.failed(e))
-          }
+                .newServerAt("localhost", port)
+                .bind(routes(true))
+                .map(
+                  _.addToCoordinatedShutdown(
+                    10 seconds
+                  ))
+      _ <- eventsClient.publish(EventTypeName(TestEvent), events).recoverWith { case e =>
+             bind.terminate(10 seconds).flatMap(_ => Future.failed(e))
+           }
     } yield ()
 
     future must throwA[Errors.EventValidation]
-      .like {
-        case e: Errors.EventValidation =>
-          forall(e.batchItemResponse)(event => event.step mustNotEqual Some(Events.Step.Validating))
+      .like { case e: Errors.EventValidation =>
+        forall(e.batchItemResponse)(event => event.step mustNotEqual Some(Events.Step.Validating))
       }
       .await(3, 1 minute)
 

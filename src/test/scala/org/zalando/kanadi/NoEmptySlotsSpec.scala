@@ -111,33 +111,33 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
     val eventualStreamOne = for {
       subscriptionId <- currentSubscriptionId.future
       stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
-                 subscriptionId,
-                 EventCallback.successAlways { eventCallbackData =>
-                   eventCallbackData.subscriptionEvent.events
-                     .getOrElse(List.empty)
-                 }
-               )
+                  subscriptionId,
+                  EventCallback.successAlways { eventCallbackData =>
+                    eventCallbackData.subscriptionEvent.events
+                      .getOrElse(List.empty)
+                  }
+                )
     } yield stream
 
     def eventualStreamTwo =
       for {
         subscriptionId <- currentSubscriptionId.future
         stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
-                   subscriptionId,
-                   EventCallback.successAlways { eventCallbackData =>
-                     eventCallbackData.subscriptionEvent.events
-                       .getOrElse(List.empty)
-                   }
-                 )
+                    subscriptionId,
+                    EventCallback.successAlways { eventCallbackData =>
+                      eventCallbackData.subscriptionEvent.events
+                        .getOrElse(List.empty)
+                    }
+                  )
       } yield stream
 
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- eventualStreamOne
       _              <- akka.pattern.after(100 millis, system.scheduler)(Future.successful(()))
-      streamTwo      = eventualStreamTwo
+      streamTwo       = eventualStreamTwo
       _              <- akka.pattern.after(100 millis, system.scheduler)(Future.successful(()))
-      _              = subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
+      _               = subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
       _              <- streamTwo
     } yield ()
 

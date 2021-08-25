@@ -93,20 +93,20 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
       for {
         subscriptionId <- currentSubscriptionId.future
         nakadiSource <- subscriptionsClient.eventsStreamedSourceManaged[SomeEvent](
-                         subscriptionId
-                       )
+                          subscriptionId
+                        )
         finalGraph = nakadiSource.source.toMat(Sink.foreach { subscriptionEvent =>
-          subscriptionEvent.events.getOrElse(List.empty).foreach {
-            case e: Event.Business[SomeEvent] =>
-              if (events.get.contains(e.data)) {
-                eventCounter += 1
-              }
-              if (eventCounter == 2)
-                streamComplete.complete(Success(()))
-            case _ =>
-          }
+                       subscriptionEvent.events.getOrElse(List.empty).foreach {
+                         case e: Event.Business[SomeEvent] =>
+                           if (events.get.contains(e.data)) {
+                             eventCounter += 1
+                           }
+                           if (eventCounter == 2)
+                             streamComplete.complete(Success(()))
+                         case _ =>
+                       }
 
-        })(Keep.left)
+                     })(Keep.left)
         _ = subscriptionsClient.addStreamToKillSwitch(subscriptionId, nakadiSource.streamId, finalGraph.run())
       } yield nakadiSource.streamId
 
@@ -142,9 +142,7 @@ class BasicSourceSpec(implicit ec: ExecutionEnv) extends Specification with Futu
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
-  def receiveEvents = (name: String) => {
-    streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
-  }
+  def receiveEvents = (name: String) => streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
 
   def closeConnection = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()

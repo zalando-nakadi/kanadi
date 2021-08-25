@@ -28,8 +28,8 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
 
   val config = ConfigFactory.load()
 
-  implicit val system       = ActorSystem()
-  implicit val http         = Http()
+  implicit val system = ActorSystem()
+  implicit val http   = Http()
 
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
@@ -85,20 +85,22 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       _ = subscriptionsClient.eventsStreamedSource[JsonObject](subscriptionId).map { nakadiSource =>
-        nakadiSource.source
-          .map { subscriptionEvent =>
-            subscriptionsClient
-              .commitCursors(subscriptionId, SubscriptionCursor(List(subscriptionEvent.cursor)), nakadiSource.streamId)
-              .onComplete {
-                case Success(response) =>
-                  successfullyParsedBadCommitResponse.complete(Success(response))
-                case Failure(e) =>
-                  successfullyParsedBadCommitResponse.complete(Failure(e))
-              }
+            nakadiSource.source
+              .map { subscriptionEvent =>
+                subscriptionsClient
+                  .commitCursors(subscriptionId,
+                                 SubscriptionCursor(List(subscriptionEvent.cursor)),
+                                 nakadiSource.streamId)
+                  .onComplete {
+                    case Success(response) =>
+                      successfullyParsedBadCommitResponse.complete(Success(response))
+                    case Failure(e) =>
+                      successfullyParsedBadCommitResponse.complete(Failure(e))
+                  }
 
+              }
+              .runWith(Sink.foreach(_ => ()))
           }
-          .runWith(Sink.foreach(_ => ()))
-      }
       result <- successfullyParsedBadCommitResponse.future
     } yield result
 
