@@ -161,9 +161,9 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("echo ${GITHUB_TOKEN} | docker login docker.pkg.github.com -u ${GITHUB_ACTOR} --password-stdin"),
     name = Some("Login to Docker"),
     env = Map(
-      "GITHUB_TOKEN" -> "${{ secrets.GITHUB_TOKEN }}",
+      "GITHUB_TOKEN" -> "${{ secrets.GITHUB_TOKEN }}"
     )
-  ),  
+  ),
   WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
   WorkflowStep.Sbt(List("clean", "coverage", "test"), name = Some("Build project"))
 )
