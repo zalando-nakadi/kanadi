@@ -157,7 +157,7 @@ pomIncludeRepository := (_ => false)
 resolvers += Resolver.jcenterRepo
 
 ThisBuild / githubWorkflowBuild := Seq(
-  WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
+  WorkflowStep.Run(List("docker login docker.pkg.github.com", "docker-compose up -d"), name = Some("Launch Nakadi")),
   WorkflowStep.Sbt(List("clean", "coverage", "test"), name = Some("Build project"))
 )
 
