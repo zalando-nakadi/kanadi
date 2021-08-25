@@ -14,9 +14,8 @@ package object kanadi {
   private[kanadi] implicit val uriDecoder: Decoder[URI] = new Decoder[URI] {
     override def apply(c: HCursor): Result[URI] =
       c.as[String].flatMap { value =>
-        try {
-          Right(new URI(value))
-        } catch {
+        try Right(new URI(value))
+        catch {
           case NonFatal(_) => Left(DecodingFailure("Invalid Uri", c.history))
         }
       }

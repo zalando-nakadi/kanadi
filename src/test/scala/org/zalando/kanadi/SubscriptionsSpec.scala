@@ -62,8 +62,9 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
 
     val createdSubscriptions = Future.sequence(for {
       _ <- 1 to 22
-      subscription = subscriptionsClient.create(
-        Subscription(None, s"$OwningApplication-${UUID.randomUUID().toString}", Some(List(eventTypeName))))
+      subscription =
+        subscriptionsClient.create(
+          Subscription(None, s"$OwningApplication-${UUID.randomUUID().toString}", Some(List(eventTypeName))))
     } yield {
       subscription.foreach { s =>
         subscriptionIds += s.id.get
@@ -74,8 +75,8 @@ class SubscriptionsSpec(implicit ec: ExecutionEnv) extends Specification with Co
     val retrievedSubscriptions = (for {
       subscriptions <- createdSubscriptions
       retrievedSubscription = Future.sequence(subscriptions.map { subscription =>
-        subscriptionsClient.createIfDoesntExist(subscription)
-      })
+                                subscriptionsClient.createIfDoesntExist(subscription)
+                              })
     } yield retrievedSubscription).flatMap(a => a)
 
     Await.result(createdSubscriptions, 10 seconds) mustEqual Await.result(retrievedSubscriptions, 10 seconds)

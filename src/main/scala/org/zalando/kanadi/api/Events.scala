@@ -71,8 +71,8 @@ object Event {
         data.deepMerge(metadata)
       }
 
-    implicit def eventBusinessDecoder[T](
-        implicit decoder: Decoder[T]
+    implicit def eventBusinessDecoder[T](implicit
+        decoder: Decoder[T]
     ): Decoder[Business[T]] =
       Decoder.instance[Business[T]] { c =>
         for {
@@ -90,8 +90,8 @@ object Event {
         x.data.asJson
       }
 
-    implicit def eventUndefinedDecoder[T](
-        implicit decoder: Decoder[T]
+    implicit def eventUndefinedDecoder[T](implicit
+        decoder: Decoder[T]
     ): Decoder[Undefined[T]] =
       Decoder.instance[Undefined[T]] { c =>
         for {
@@ -108,26 +108,22 @@ object Event {
     }
 
   implicit def eventDecoder[T](implicit decoder: Decoder[T]): Decoder[Event[T]] =
-    Decoder.instance[Event[T]](
-      c => {
-        val dataOpR   = c.downField("data_op").as[Option[String]]
-        val metadataR = c.downField("metadata").as[Option[Metadata]]
+    Decoder.instance[Event[T]] { c =>
+      val dataOpR   = c.downField("data_op").as[Option[String]]
+      val metadataR = c.downField("metadata").as[Option[Metadata]]
 
-        (for {
-          dataOp   <- dataOpR
-          metadata <- metadataR
-        } yield {
-          (dataOp, metadata) match {
-            case (Some(_), Some(_)) =>
-              c.as[Event.DataChange[T]]: Result[Event[T]]
-            case (None, Some(_)) =>
-              c.as[Event.Business[T]]: Result[Event[T]]
-            case _ =>
-              c.as[Event.Undefined[T]]: Result[Event[T]]
-          }
-        }).joinRight
-      }
-    )
+      (for {
+        dataOp   <- dataOpR
+        metadata <- metadataR
+      } yield (dataOp, metadata) match {
+        case (Some(_), Some(_)) =>
+          c.as[Event.DataChange[T]]: Result[Event[T]]
+        case (None, Some(_)) =>
+          c.as[Event.Business[T]]: Result[Event[T]]
+        case _ =>
+          c.as[Event.Undefined[T]]: Result[Event[T]]
+      }).joinRight
+    }
 }
 
 sealed abstract class DataOperation(val id: String) extends EnumEntry with Product with Serializable {
@@ -252,8 +248,7 @@ object Events {
   }
 }
 
-case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(
-    implicit
+case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     exponentialBackoffConfig: ExponentialBackoffConfig,
     http: HttpExt,
@@ -262,28 +257,44 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
   private val baseUri_                               = Uri(baseUri.toString)
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Events])
 
-  /**
-    * Publishes a batch of [[Event]]'s of this [[org.zalando.kanadi.models.EventTypeName]]. All items must be of the EventType identified by name.
+  /** Publishes a batch of [[Event]] 's of this [[org.zalando.kanadi.models.EventTypeName]]. All items must be of the
+    * EventType identified by name.
     *
-    * Reception of Events will always respect the configuration of its [[org.zalando.kanadi.models.EventTypeName]] with respect to validation, enrichment and partition. The steps performed on reception of incoming message are:
+    * Reception of Events will always respect the configuration of its [[org.zalando.kanadi.models.EventTypeName]] with
+    * respect to validation, enrichment and partition. The steps performed on reception of incoming message are:
     *
-    * Every validation rule specified for the [[EventType]] will be checked in order against the incoming Events. Validation rules are evaluated in the order they are defined and the Event is rejected in the first case of failure. If the offending validation rule provides information about the violation it will be included in the BatchItemResponse. If the [[org.zalando.kanadi.models.EventTypeName]] defines schema validation it will be performed at this moment. The size of each Event will also be validated. The maximum size per Event is 999,000 bytes. We use the batch input to measure the size of events, so unnecessary spaces, tabs, and carriage returns will count towards the event size.
-    * Once the validation succeeded, the content of the Event is updated according to the enrichment rules in the order the rules are defined in the [[EventType]]. No preexisting value might be changed (even if added by an enrichment rule). Violations on this will force the immediate rejection of the Event. The invalid overwrite attempt will be included in the item's BatchItemResponse object.
-    * The incoming Event's relative ordering is evaluated according to the rule on the [[EventType]]. Failure to evaluate the rule will reject the Event.
+    * Every validation rule specified for the [[EventType]] will be checked in order against the incoming Events.
+    * Validation rules are evaluated in the order they are defined and the Event is rejected in the first case of
+    * failure. If the offending validation rule provides information about the violation it will be included in the
+    * BatchItemResponse. If the [[org.zalando.kanadi.models.EventTypeName]] defines schema validation it will be
+    * performed at this moment. The size of each Event will also be validated. The maximum size per Event is 999,000
+    * bytes. We use the batch input to measure the size of events, so unnecessary spaces, tabs, and carriage returns
+    * will count towards the event size. Once the validation succeeded, the content of the Event is updated according to
+    * the enrichment rules in the order the rules are defined in the [[EventType]]. No preexisting value might be
+    * changed (even if added by an enrichment rule). Violations on this will force the immediate rejection of the Event.
+    * The invalid overwrite attempt will be included in the item's BatchItemResponse object. The incoming Event's
+    * relative ordering is evaluated according to the rule on the [[EventType]]. Failure to evaluate the rule will
+    * reject the Event.
     *
-    * Given the batched nature of this operation, any violation on validation or failures on enrichment or partitioning will cause the whole batch to be rejected, i.e. none of its elements are pushed to the underlying broker.
+    * Given the batched nature of this operation, any violation on validation or failures on enrichment or partitioning
+    * will cause the whole batch to be rejected, i.e. none of its elements are pushed to the underlying broker.
     *
-    * Failures on writing of specific partitions to the broker might influence other partitions. Failures at this stage will fail only the affected partitions.
+    * Failures on writing of specific partitions to the broker might influence other partitions. Failures at this stage
+    * will fail only the affected partitions.
     *
-    * @param name Name of the EventType
-    * @param events The Event being published
+    * @param name
+    *   Name of the EventType
+    * @param events
+    *   The Event being published
     * @param encoder
-    * @param flowId The flow id of the request, which is written into the logs and passed to called services. Helpful for operational troubleshooting and log analysis.
+    * @param flowId
+    *   The flow id of the request, which is written into the logs and passed to called services. Helpful for
+    *   operational troubleshooting and log analysis.
     * @tparam T
     * @return
     */
-  def publish[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
-      implicit encoder: Encoder[T],
+  def publish[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(implicit
+      encoder: Encoder[T],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] =
@@ -296,8 +307,8 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
                                          currentNotValidEvents: List[Events.BatchItemResponse],
                                          fillMetadata: Boolean,
                                          currentDuration: FiniteDuration,
-                                         count: Int)(
-      implicit encoder: Encoder[T],
+                                         count: Int)(implicit
+      encoder: Encoder[T],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
@@ -330,11 +341,10 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
             s"Max retry failed for publishing events, event id's still not submitted are ${finalEvents.flatMap(_.eid.map(_.id)).mkString(",")}")
           Future.failed(Events.Errors.EventValidation(finalEvents))
         } else {
-          val (noNeedToRetryResponse, toRetryResponse) = errors.partition(
-            response =>
-              // If there is a validation error sending the event there is no point in retrying it
-              response.step
-                .contains(Events.Step.Validating) || response.publishingStatus == Events.PublishingStatus.Submitted)
+          val (noNeedToRetryResponse, toRetryResponse) = errors.partition(response =>
+            // If there is a validation error sending the event there is no point in retrying it
+            response.step
+              .contains(Events.Step.Validating) || response.publishingStatus == Events.PublishingStatus.Submitted)
           val eventsToRetry = events.filter { event =>
             eventWithUndefinedEventIdFallback(event) match {
               case Some(eid) => toRetryResponse.exists(_.eid.contains(eid))
@@ -376,26 +386,25 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     }
   }
 
-  /**
-    * If we have an event of type [[Event.Undefined]], this function will try and manually parse the event to see if
-    * it has an "eid" field. The "eid" field is not mandatory in [[Event.Undefined]] however there is a chance it can
-    * still be there.
+  /** If we have an event of type [[Event.Undefined]], this function will try and manually parse the event to see if it
+    * has an "eid" field. The "eid" field is not mandatory in [[Event.Undefined]] however there is a chance it can still
+    * be there.
     *
     * @param event
     * @param encoder
     * @tparam T
     * @return
     */
-  private[api] def eventWithUndefinedEventIdFallback[T](event: Event[T])(
-      implicit encoder: Encoder[T]): Option[EventId] =
+  private[api] def eventWithUndefinedEventIdFallback[T](event: Event[T])(implicit
+      encoder: Encoder[T]): Option[EventId] =
     event.getMetadata.map(_.eid) orElse {
       (event.data.asJson \\ "eid").headOption.flatMap { json =>
         json.as[EventId].toOption
       }
     }
 
-  private[api] def publishBase[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(
-      implicit encoder: Encoder[T],
+  private[api] def publishBase[T](name: EventTypeName, events: List[Event[T]], fillMetadata: Boolean = true)(implicit
+      encoder: Encoder[T],
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
@@ -416,16 +425,16 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
 
     for {
       headers <- oAuth2TokenProvider match {
-                  case None => Future.successful(baseHeaders)
-                  case Some(futureProvider) =>
-                    futureProvider.value().map { oAuth2Token =>
-                      toHeader(oAuth2Token) +: baseHeaders
-                    }
-                }
+                   case None => Future.successful(baseHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders
+                     }
+                 }
 
       entity   <- Marshal(finalEvents).to[RequestEntity]
-      request  = HttpRequest(HttpMethods.POST, uri, headers, entity)
-      _        = logger.debug(request.toString)
+      request   = HttpRequest(HttpMethods.POST, uri, headers, entity)
+      _         = logger.debug(request.toString)
       response <- http.singleRequest(request)
       result <- {
         response.status match {

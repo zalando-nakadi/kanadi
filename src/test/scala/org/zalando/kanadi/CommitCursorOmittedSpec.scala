@@ -85,23 +85,23 @@ class CommitCursorOmittedSpec(implicit ec: ExecutionEnv) extends Specification w
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       _ = subscriptionsClient.eventsStreamedSource[JsonObject](subscriptionId).map { nakadiSource =>
-        nakadiSource.source
-          .map { subscriptionEvent =>
-            subscriptionsClient
-              .commitCursors(subscriptionId,
-                             SubscriptionCursor(List(subscriptionEvent.cursor)),
-                             nakadiSource.streamId,
-                             eventBatch = false)
-              .onComplete {
-                case Success(response) =>
-                  successfullyParsedBadCommitResponse.complete(Success(response))
-                case Failure(e) =>
-                  successfullyParsedBadCommitResponse.complete(Failure(e))
-              }
+            nakadiSource.source
+              .map { subscriptionEvent =>
+                subscriptionsClient
+                  .commitCursors(subscriptionId,
+                                 SubscriptionCursor(List(subscriptionEvent.cursor)),
+                                 nakadiSource.streamId,
+                                 eventBatch = false)
+                  .onComplete {
+                    case Success(response) =>
+                      successfullyParsedBadCommitResponse.complete(Success(response))
+                    case Failure(e) =>
+                      successfullyParsedBadCommitResponse.complete(Failure(e))
+                  }
 
+              }
+              .runWith(Sink.foreach(_ => ()))
           }
-          .runWith(Sink.foreach(_ => ()))
-      }
       result <- successfullyParsedBadCommitResponse.future
     } yield result
 

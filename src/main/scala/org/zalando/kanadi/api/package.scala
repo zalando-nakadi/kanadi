@@ -65,23 +65,21 @@ package object api {
       MDC.remove("flow_id")
   }
 
-  def processNotSuccessful(request: HttpRequest, response: HttpResponse)(
-      implicit materializer: Materializer,
+  def processNotSuccessful(request: HttpRequest, response: HttpResponse)(implicit
+      materializer: Materializer,
       executionContext: ExecutionContext): Future[Nothing] =
     for {
       stringOrProblem <- unmarshalStringOrProblem(response.entity)
-    } yield {
-      stringOrProblem match {
-        case Left(body) =>
-          parser.parse(body).flatMap(_.as[BasicServerError]) match {
-            case Left(_) =>
-              throw new HttpServiceError(request, response, stringOrProblem)
-            case Right(basicServerError) =>
-              throw OtherError(basicServerError)
-          }
-        case Right(problem) =>
-          throw new GeneralError(problem, request, response)
-      }
+    } yield stringOrProblem match {
+      case Left(body) =>
+        parser.parse(body).flatMap(_.as[BasicServerError]) match {
+          case Left(_) =>
+            throw new HttpServiceError(request, response, stringOrProblem)
+          case Right(basicServerError) =>
+            throw OtherError(basicServerError)
+        }
+      case Right(problem) =>
+        throw new GeneralError(problem, request, response)
     }
 
   private[kanadi] def maybeStringToProblem(string: String): Option[Problem] = {
@@ -95,13 +93,13 @@ package object api {
       } yield asProblem
   }
 
-  private[kanadi] def unmarshalStringOrProblem(entity: HttpEntity)(
-      implicit materializer: Materializer,
+  private[kanadi] def unmarshalStringOrProblem(entity: HttpEntity)(implicit
+      materializer: Materializer,
       executionContext: ExecutionContext): Future[Either[String, Problem]] =
     for {
-      asString <- Unmarshal(entity).to[String].recover {
-                   case Unmarshaller.NoContentException => ""
-                 }
+      asString <- Unmarshal(entity).to[String].recover { case Unmarshaller.NoContentException =>
+                    ""
+                  }
       tryDecodeAsProblem = maybeStringToProblem(asString)
 
     } yield tryDecodeAsProblem.toRight(asString)

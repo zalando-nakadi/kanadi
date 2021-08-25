@@ -120,30 +120,30 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       for {
         subscriptionId <- currentSubscriptionId.future
         stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
-                   subscriptionId,
-                   EventCallback.successAlways { eventCallbackData =>
-                     eventCallbackData.subscriptionEvent.events
-                       .getOrElse(List.empty)
-                       .foreach {
-                         case e: Event.Business[SomeEvent] =>
-                           if (events.get.contains(e.data)) {
-                             eventCounter.addAndGet(1)
-                           }
-                           if (eventCounter.get() == 2)
-                             streamComplete.complete(Success(()))
-                         case _ =>
-                       }
-                   },
-                   ConnectionClosedCallback { connectionClosedData =>
-                     if (connectionClosedData.cancelledByClient)
-                       subscriptionClosed.set(true)
-                   },
-                   Subscriptions.StreamConfig(),
-                   Some { source =>
-                     modifySourceFunctionActivated.set(true)
-                     source
-                   }
-                 )
+                    subscriptionId,
+                    EventCallback.successAlways { eventCallbackData =>
+                      eventCallbackData.subscriptionEvent.events
+                        .getOrElse(List.empty)
+                        .foreach {
+                          case e: Event.Business[SomeEvent] =>
+                            if (events.get.contains(e.data)) {
+                              eventCounter.addAndGet(1)
+                            }
+                            if (eventCounter.get() == 2)
+                              streamComplete.complete(Success(()))
+                          case _ =>
+                        }
+                    },
+                    ConnectionClosedCallback { connectionClosedData =>
+                      if (connectionClosedData.cancelledByClient)
+                        subscriptionClosed.set(true)
+                    },
+                    Subscriptions.StreamConfig(),
+                    Some { source =>
+                      modifySourceFunctionActivated.set(true)
+                      source
+                    }
+                  )
       } yield stream
 
     stream.onComplete {
@@ -158,9 +158,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
 
   }
 
-  def receiveEvents = (name: String) => {
-    streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
-  }
+  def receiveEvents = (name: String) => streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
 
   def getSubscriptionStats = (name: String) => {
     implicit val flowId: FlowId = Utils.randomFlowId()
@@ -186,8 +184,8 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
 
     val future = for {
-      closed                <- closedFuture
-      waitForClose          <- waitForCloseFuture
+      closed               <- closedFuture
+      waitForClose         <- waitForCloseFuture
       modifySourceActivated = modifySourceFunctionActivated.get()
     } yield (closed, waitForClose, modifySourceActivated)
 
