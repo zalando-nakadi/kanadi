@@ -83,9 +83,9 @@ scalacOptions ++= {
 
 libraryDependencies ++= {
   Seq(
-    "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion,
-    "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion,
-    "com.typesafe.akka"          %% "akka-stream"         % akkaVersion,
+    "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion % Provided,
+    "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion     % Provided,
+    "com.typesafe.akka"          %% "akka-stream"         % akkaVersion     % Provided,
     "org.mdedetrich"             %% "censored-raw-header" % "0.5.0",
     "org.mdedetrich"             %% "webmodels"           % "0.8.1",
     "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
@@ -96,7 +96,7 @@ libraryDependencies ++= {
     "com.iheart"                 %% "ficus"               % "1.4.7",
     "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.2",
     "ch.qos.logback"              % "logback-classic"     % "1.1.7",
-    "org.specs2"                 %% "specs2-core"         % specs2Version % Test
+    "org.specs2"                 %% "specs2-core"         % specs2Version   % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
       Seq(
