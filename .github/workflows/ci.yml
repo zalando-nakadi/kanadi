@@ -51,7 +51,7 @@ jobs:
       - name: Login to docker
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo ${GITHUB_TOKEN} | docker login -u ${GITHUB_ACTOR} --password-stdin
+        run: echo ${GITHUB_TOKEN} | docker login docker.pkg.github.com -u ${GITHUB_ACTOR} --password-stdin
 
       - name: Launch Nakadi
         run: docker-compose up -d
