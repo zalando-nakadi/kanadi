@@ -14,6 +14,8 @@ ThisBuild / scalaVersion := currentScalaVersion
 
 ThisBuild / crossScalaVersions := Seq(currentScalaVersion, scala213Version)
 
+ThisBuild / versionScheme := Some(VersionScheme.EarlySemVer)
+
 organization := "org.zalando"
 
 Test / fork               := true
