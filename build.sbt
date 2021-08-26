@@ -159,11 +159,13 @@ pomIncludeRepository := (_ => false)
 resolvers += Resolver.jcenterRepo
 
 ThisBuild / githubWorkflowBuild := Seq(
-  WorkflowStep.Run(
-    List("echo ${GITHUB_TOKEN} | docker login docker.pkg.github.com -u ${GITHUB_ACTOR} --password-stdin"),
-    name = Some("Login to Docker"),
-    env = Map(
-      "GITHUB_TOKEN" -> "${{ secrets.GITHUB_TOKEN }}"
+  WorkflowStep.Use(
+    UseRef.Public("docker", "login-action", "v1"),
+    name = Some("Login to GitHub Container Registry"),
+    params = Map(
+      "registry" -> "docker.pkg.github.com",
+      "username" -> "${{ github.actor }}",
+      "password" -> "${{ secrets.GITHUB_TOKEN }}"
     )
   ),
   WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
