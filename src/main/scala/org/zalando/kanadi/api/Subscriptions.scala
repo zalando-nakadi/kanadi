@@ -863,7 +863,8 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
   }
 
   def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursorWithoutToken] = None)(
-      implicit flowId: FlowId = randomFlowId(),
+      implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Boolean] = {
     val uri = baseUri_

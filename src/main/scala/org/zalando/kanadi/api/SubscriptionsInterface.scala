@@ -51,7 +51,8 @@ trait SubscriptionsInterface {
   ): Future[Option[CommitCursorResponse]]
 
   def resetCursors(subscriptionId: SubscriptionId, subscriptionCursor: Option[SubscriptionCursorWithoutToken] = None)(
-      implicit flowId: FlowId = randomFlowId(),
+      implicit
+      flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Boolean]
 
