@@ -11,3 +11,5 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.8.2")
 addSbtPlugin("org.scoverage" % "sbt-coveralls" % "1.3.1")
 
 addSbtPlugin("com.codecommit" % "sbt-github-actions" % "0.12.0")
+
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")
