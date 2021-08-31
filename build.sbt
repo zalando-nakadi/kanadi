@@ -191,3 +191,21 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 ThisBuild / githubWorkflowUseSbtThinClient := false
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq()
+
+import ReleaseTransformations._
+
+releaseCrossBuild := true
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  commitReleaseVersion,
+  tagRelease,
+  releaseStepCommandAndRemaining("+publishSigned"),
+  releaseStepCommand("sonatypeReleaseAll"),
+  setNextVersion,
+  commitNextVersion,
+  pushChanges
+)
