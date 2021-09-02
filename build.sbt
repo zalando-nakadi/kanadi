@@ -194,12 +194,12 @@ ThisBuild / githubWorkflowPublishTargetBranches := Seq()
 
 import ReleaseTransformations._
 
-releaseCrossBuild := true
+releaseCrossBuild := false
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
   runClean,
-  runTest,
+  releaseStepCommandAndRemaining("+test"),
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
