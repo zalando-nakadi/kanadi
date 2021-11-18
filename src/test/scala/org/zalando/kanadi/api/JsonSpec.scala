@@ -28,7 +28,9 @@ class JsonSpec extends Specification {
   val uuid      = UUID.randomUUID()
   val testEvent = SomeEvent("Bart", "Simpson", uuid)
   val now       = OffsetDateTime.now()
-  val md        = Metadata(eid = EventId(UUID.fromString("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6")), occurredAt = now, publishedBy = Some(PublishedBy("bart_simpson")))
+  val md = Metadata(eid = EventId(UUID.fromString("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6")),
+                    occurredAt = now,
+                    publishedBy = Some(PublishedBy("bart_simpson")))
 
   val coreEventJson = s"""
     "first_name": "Bart",
