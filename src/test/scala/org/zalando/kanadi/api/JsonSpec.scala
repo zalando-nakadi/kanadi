@@ -10,7 +10,7 @@ import org.specs2.specification.core.SpecStructure
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import org.zalando.kanadi.models.{EventId, SpanCtx}
+import org.zalando.kanadi.models.{EventId, SpanCtx, PublishedBy}
 import java.time.OffsetDateTime
 
 import io.circe.CursorOp.DownField
@@ -28,7 +28,9 @@ class JsonSpec extends Specification {
   val uuid      = UUID.randomUUID()
   val testEvent = SomeEvent("Bart", "Simpson", uuid)
   val now       = OffsetDateTime.now()
-  val md        = Metadata(eid = EventId(UUID.fromString("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6")), occurredAt = now)
+  val md = Metadata(eid = EventId(UUID.fromString("4ae5011e-eb01-11e5-8b4a-1c6f65464fc6")),
+                    occurredAt = now,
+                    publishedBy = Some(PublishedBy("bart_simpson")))
 
   val coreEventJson = s"""
     "first_name": "Bart",
@@ -37,7 +39,7 @@ class JsonSpec extends Specification {
   """
 
   val metadata =
-    s""""eid": "4ae5011e-eb01-11e5-8b4a-1c6f65464fc6", "occurred_at": ${now.asJson}"""
+    s""""eid": "4ae5011e-eb01-11e5-8b4a-1c6f65464fc6", "occurred_at": ${now.asJson}, "published_by": "bart_simpson""""
 
   val businessEventJson = s"""{
     "metadata": {$metadata},
