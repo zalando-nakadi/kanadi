@@ -2,7 +2,6 @@ package org.zalando.kanadi.api
 
 import java.net.URI
 
-import defaults._
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ContentTypes, HttpMethods, HttpRequest, Uri}

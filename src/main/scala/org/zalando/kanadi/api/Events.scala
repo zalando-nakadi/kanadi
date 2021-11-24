@@ -10,7 +10,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
-import cats.syntax.either._
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
@@ -24,7 +23,6 @@ import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 sealed abstract class Event[T](val data: T) {
   def getMetadata: Option[Metadata] = this match {

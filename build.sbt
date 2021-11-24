@@ -1,14 +1,16 @@
 name := """kanadi"""
 
-val akkaHttpVersion                    = "10.2.2"
-val akkaStreamsJsonVersion             = "0.7.0"
-val currentScalaVersion                = "2.12.11"
-val scala213Version                    = "2.13.4"
-val enumeratumCirceVersion             = "1.5.23"
-val circeVersion                       = "0.13.0"
-val akkaVersion                        = "2.6.10"
-val specs2Version                      = "4.8.0"
-val heikoseebergerAkkaHttpCirceVersion = "1.35.3"
+val scala212Version     = "2.12.14"
+val scala213Version     = "2.13.7"
+val currentScalaVersion = scala212Version
+
+val akkaHttpVersion                    = "10.2.7"
+val akkaStreamsJsonVersion             = "0.8.0"
+val enumeratumCirceVersion             = "1.7.0"
+val circeVersion                       = "0.14.1"
+val akkaVersion                        = "2.6.17"
+val specs2Version                      = "4.13.0"
+val heikoseebergerAkkaHttpCirceVersion = "1.38.2"
 
 ThisBuild / scalaVersion := currentScalaVersion
 
@@ -48,7 +50,7 @@ scalacOptions ++= Seq(
   "-Xlint:private-shadow",         // A private field (or class parameter) shadows a superclass field.
   "-Xlint:stars-align",            // Pattern sequence wildcard must align with sequence component.
   "-Xlint:type-parameter-shadow",  // A local type parameter shadows a type already in scope.
-  //"-Yno-adapted-args", // Do not adapt an argument list (either by inserting () or creating a tuple) to match the receiver.
+  // "-Yno-adapted-args", // Do not adapt an argument list (either by inserting () or creating a tuple) to match the receiver.
   "-Ywarn-dead-code",     // Warn when dead code is identified.
   "-Ywarn-numeric-widen", // Warn when numerics are widened.
   "-Ywarn-value-discard"  // Warn when non-Unit expression results are unused.
@@ -86,16 +88,16 @@ libraryDependencies ++= {
     "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion % Provided,
     "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion     % Provided,
     "com.typesafe.akka"          %% "akka-stream"         % akkaVersion     % Provided,
-    "org.mdedetrich"             %% "censored-raw-header" % "0.5.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.8.1",
+    "org.mdedetrich"             %% "censored-raw-header" % "0.7.0",
+    "org.mdedetrich"             %% "webmodels"           % "0.9.1",
     "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
     "io.circe"                   %% "circe-parser"        % circeVersion,
     "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
     "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
     "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
-    "com.iheart"                 %% "ficus"               % "1.4.7",
-    "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.2",
-    "ch.qos.logback"              % "logback-classic"     % "1.1.7",
+    "com.iheart"                 %% "ficus"               % "1.5.1",
+    "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.4",
+    "ch.qos.logback"              % "logback-classic"     % "1.2.7",
     "org.specs2"                 %% "specs2-core"         % specs2Version   % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
