@@ -107,8 +107,6 @@ class AvroBasicSpec(implicit ec: ExecutionEnv) extends Specification with Future
 
     result.source.runForeach(subEvent => subEvent.events.foreach(ls =>
       ls.foreach(ev => {
-        println(ev.data)
-        println(expectedDataEvents.contains(ev.data))
         if (expectedDataEvents.contains(ev.data))
           eventCounter.addAndGet(1)
 

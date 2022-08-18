@@ -544,8 +544,6 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
       _         = logger.debug(request.toString)
       response <- http.singleRequest(request)
       result <- {
-        println(s"Request for schema match is $request")
-        println(s"Response for schema match is $response")
         if (response.status == StatusCodes.NotFound) {
           response.discardEntityBytes()
           Future.successful(None)
