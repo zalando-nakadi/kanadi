@@ -85,20 +85,23 @@ scalacOptions ++= {
 
 libraryDependencies ++= {
   Seq(
-    "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion % Provided,
-    "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion     % Provided,
-    "com.typesafe.akka"          %% "akka-stream"         % akkaVersion     % Provided,
-    "org.mdedetrich"             %% "censored-raw-header" % "0.7.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.9.1",
-    "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
-    "io.circe"                   %% "circe-parser"        % circeVersion,
-    "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
-    "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
-    "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
-    "com.iheart"                 %% "ficus"               % "1.5.1",
-    "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.4",
-    "ch.qos.logback"              % "logback-classic"     % "1.2.7",
-    "org.specs2"                 %% "specs2-core"         % specs2Version   % Test
+    "com.typesafe.akka"               %% "akka-http"                % akkaHttpVersion % Provided,
+    "com.typesafe.akka"               %% "akka-slf4j"               % akkaVersion     % Provided,
+    "com.typesafe.akka"               %% "akka-stream"              % akkaVersion     % Provided,
+    "org.mdedetrich"                  %% "censored-raw-header"      % "0.7.0",
+    "org.mdedetrich"                  %% "webmodels"                % "0.9.1",
+    "com.beachape"                    %% "enumeratum-circe"         % enumeratumCirceVersion,
+    "io.circe"                        %% "circe-parser"             % circeVersion,
+    "org.mdedetrich"                  %% "akka-stream-circe"        % akkaStreamsJsonVersion,
+    "org.mdedetrich"                  %% "akka-http-circe"          % akkaStreamsJsonVersion,
+    "de.heikoseeberger"               %% "akka-http-circe"          % heikoseebergerAkkaHttpCirceVersion,
+    "com.iheart"                      %% "ficus"                    % "1.5.1",
+    "com.typesafe.scala-logging"      %% "scala-logging"            % "3.9.4",
+    "ch.qos.logback"                   % "logback-classic"          % "1.2.7",
+    "org.apache.avro"                  % "avro"                     % "1.11.0",
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-avro"  % "2.13.3",
+    "com.fasterxml.jackson.module"    %% "jackson-module-scala"     % "2.13.2",
+    "org.specs2"                      %% "specs2-core"         % specs2Version   % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
       Seq(
@@ -108,6 +111,8 @@ libraryDependencies ++= {
       Seq.empty
   })
 }
+// avro compiler features
+avroStringType := "String"
 
 Test / scalacOptions ++= Seq("-Yrangepos")
 
