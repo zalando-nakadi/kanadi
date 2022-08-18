@@ -12,6 +12,10 @@ final case class OtherError(error: BasicServerError) extends Exception {
   override def getMessage: String = s"Error from server, response is $error"
 }
 
+final case class SchemaNotFoundError(schemaString: String) extends Exception {
+  override def getMessage: String = s"Schema with value $schemaString not found on server"
+}
+
 class ExpectedHeader(val headerName: String,
                      override val httpRequest: HttpRequest,
                      override val httpResponse: HttpResponse)
