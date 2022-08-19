@@ -25,7 +25,12 @@ import scala.util.Success
 
 case class AvroRecordTest(foo: String, bar: Int)
 
-class AvroBasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config with BeforeAll with AfterAll {
+class AvroBasicSpec(implicit ec: ExecutionEnv)
+    extends Specification
+    with FutureMatchers
+    with Config
+    with BeforeAll
+    with AfterAll {
 
   override val config = ConfigFactory.load()
 
@@ -37,14 +42,11 @@ class AvroBasicSpec(implicit ec: ExecutionEnv) extends Specification with Future
     Consume published avro evetns $consumeAvroEvent
    """
 
-
-
   implicit val system = ActorSystem()
   implicit val http   = Http()
 
-
-  val eventTypeName         = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
-  val OwningApplication     = "KANADI"
+  val eventTypeName     = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
+  val OwningApplication = "KANADI"
   val schema = """{
     |"name": "AvroTestRecord",
     |"namespace": "com.zalando.test",
@@ -61,7 +63,10 @@ class AvroBasicSpec(implicit ec: ExecutionEnv) extends Specification with Future
     |]
     |}""".stripMargin('|')
 
-  val eventType = EventType(eventTypeName, OwningApplication, Category.Business, schema = EventTypeSchema(None, None, `type` = Type.AvroSchema, schema = schema.asJson))
+  val eventType = EventType(eventTypeName,
+                            OwningApplication,
+                            Category.Business,
+                            schema = EventTypeSchema(None, None, `type` = Type.AvroSchema, schema = schema.asJson))
 
   val eventsTypesClient = EventTypes(nakadiUri)
 
@@ -72,53 +77,55 @@ class AvroBasicSpec(implicit ec: ExecutionEnv) extends Specification with Future
 
   val expectedDataEvents = events.map(_.data).toSet
 
-  val eventCounter                                   = new AtomicInteger(0)
-  val subscriptionClosed: AtomicBoolean              = new AtomicBoolean(false)
-  val modifySourceFunctionActivated: AtomicBoolean   = new AtomicBoolean(false)
-  val streamComplete: Promise[Unit]                  = Promise()
-  val streamId: Promise[StreamId]                  = Promise()
-
+  val eventCounter                      = new AtomicInteger(0)
+  val subscriptionClosed: AtomicBoolean = new AtomicBoolean(false)
+  val streamComplete: Promise[Unit]     = Promise()
 
   override def beforeAll = Await.result(eventsTypesClient.create(eventType), 10 seconds)
 
-  override def afterAll = {
+  override def afterAll =
     Await.result(eventsTypesClient.delete(eventTypeName), 10 seconds)
-
-  }
 
   def publishAvroEvent = {
     val avroPublisher = AvroPublisher[AvroRecordTest](nakadiUri, None, eventTypeName, schema, eventsTypesClient)
-    val future = avroPublisher.publishAvro(events)
+    val future        = avroPublisher.publishAvro(events)
     future must be_==(()).await(retries = 3, timeout = 10 seconds)
   }
 
   def consumeAvroEvent = {
     implicit val flowId: FlowId = Utils.randomFlowId()
 
-    val allAuth = List(AuthorizationAttribute("user", "*"))
-    val subAuth = SubscriptionAuthorization(allAuth, allAuth)
+    val allAuth      = List(AuthorizationAttribute("user", "*"))
+    val subAuth      = SubscriptionAuthorization(allAuth, allAuth)
     val avroConsumer = AvroSubscriptions[AvroRecordTest](nakadiUri, None, eventTypeName, schema, eventsTypesClient)
-    val subCreated = avroConsumer.create(Subscription(readFrom = Some("begin"), id = None, owningApplication = "App",
-      eventTypes = Some(List(eventTypeName)), consumerGroup = Some("default"), authorization = Some(subAuth)))
+    val subCreated = avroConsumer.create(
+      Subscription(readFrom = Some("begin"),
+                   id = None,
+                   owningApplication = "App",
+                   eventTypes = Some(List(eventTypeName)),
+                   consumerGroup = Some("default"),
+                   authorization = Some(subAuth)))
 
     val sub = Await.result(subCreated, 10 seconds)
-    val eventsFuture = avroConsumer.eventsStreamedSourceAvro(subscriptionId = sub.id.get, streamConfig = Subscriptions.StreamConfig(batchLimit = Some(2), streamLimit = Some(100)))
+    val eventsFuture = avroConsumer.eventsStreamedSourceAvro(
+      subscriptionId = sub.id.get,
+      streamConfig = Subscriptions.StreamConfig(batchLimit = Some(2), streamLimit = Some(100)))
     val result = Await.result(eventsFuture, 10 seconds)
 
-    result.source.runForeach(subEvent => subEvent.events.foreach(ls =>
-      ls.foreach(ev => {
-        if (expectedDataEvents.contains(ev.data))
-          eventCounter.addAndGet(1)
+    result.source.runForeach(subEvent =>
+      subEvent.events.foreach(ls =>
+        ls.foreach { ev =>
+          if (expectedDataEvents.contains(ev.data))
+            eventCounter.addAndGet(1)
 
-        if (eventCounter.get() == 2) {
-          streamComplete.complete(Success(()))
+          if (eventCounter.get() == 2) {
+            streamComplete.complete(Success(()))
 
-          avroConsumer.
-            commitCursors(sub.id.get, SubscriptionCursor(List(subEvent.cursor)), result.streamId)
+            avroConsumer.commitCursors(sub.id.get, SubscriptionCursor(List(subEvent.cursor)), result.streamId)
 
-          avroConsumer.delete(sub.id.get)
-        }
-      })))
+            avroConsumer.delete(sub.id.get)
+          }
+        }))
 
     streamComplete.future must be_==(()).await(0, timeout = 1 minutes)
   }

@@ -524,21 +524,22 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     } yield result
   }
 
-  override def fetchMatchingSchema(name: EventTypeName, schema: String)(implicit flowId: FlowId,
-                                                                        executionContext: ExecutionContext): Future[Option[EventTypeSchema]] = {
-    val uri = baseUri_.withPath(baseUri_.path / "event-types" / name.name / "schemas").
-      withQuery(Uri.Query(("fetch", "true")))
+  override def fetchMatchingSchema(name: EventTypeName, schema: String)(implicit
+      flowId: FlowId,
+      executionContext: ExecutionContext): Future[Option[EventTypeSchema]] = {
+    val uri =
+      baseUri_.withPath(baseUri_.path / "event-types" / name.name / "schemas").withQuery(Uri.Query(("fetch", "true")))
 
     val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
-    val etSchema = EventTypeSchema(None, None, EventTypeSchema.Type.AvroSchema, schema.asJson)
+    val etSchema    = EventTypeSchema(None, None, EventTypeSchema.Type.AvroSchema, schema.asJson)
     for {
       headers <- oAuth2TokenProvider match {
-        case None => Future.successful(baseHeaders)
-        case Some(futureProvider) =>
-          futureProvider.value().map { oAuth2Token =>
-            toHeader(oAuth2Token) +: baseHeaders
-          }
-      }
+                   case None => Future.successful(baseHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders
+                     }
+                 }
       entity   <- Marshal(etSchema).to[RequestEntity]
       request   = HttpRequest(HttpMethods.POST, uri, headers, entity)
       _         = logger.debug(request.toString)
@@ -547,7 +548,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
         if (response.status == StatusCodes.NotFound) {
           response.discardEntityBytes()
           Future.successful(None)
-        }else if (response.status.isSuccess()) {
+        } else if (response.status.isSuccess()) {
           Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .to[EventTypeSchema]
             .map(Some.apply)

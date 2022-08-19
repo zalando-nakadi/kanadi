@@ -214,7 +214,10 @@ object CommitCursorResponse {
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
 
-  def apply(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider])(implicit kanadiHttpConfig: HttpConfig, http: HttpExt, materializer: Materializer): Subscriptions =
+  def apply(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider])(implicit
+      kanadiHttpConfig: HttpConfig,
+      http: HttpExt,
+      materializer: Materializer): Subscriptions =
     new Subscriptions(baseUri, oAuth2TokenProvider)(kanadiHttpConfig, http, materializer)
 
   sealed abstract class Errors(override val httpRequest: HttpRequest,
@@ -239,8 +242,8 @@ object Subscriptions {
     override def getMessage: String = jsonParsingException.getMessage
   }
 
-  final case class EventAvroParsingException(avroParsingException: AvroRuntimeException) //TODO: add info message
-    extends Exception {
+  final case class EventAvroParsingException(avroParsingException: AvroRuntimeException) // TODO: add info message
+      extends Exception {
     override def getMessage: String = avroParsingException.getMessage
   }
 
@@ -539,41 +542,56 @@ final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: Str
     s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
 }
 
-object AvroSubscriptions{
+object AvroSubscriptions {
 
-  def apply[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider], eventTypeName: EventTypeName, consumerSchema: String, eventTypes: EventTypesInterface)(implicit kanadiHttpConfig: HttpConfig, http: HttpExt, materializer: Materializer, executionContext: ExecutionContext, tag: ClassTag[T]): AvroSubscriptions[T] = {
-    implicit val  exponentialBackoffConfig = ExponentialBackoffConfig(FiniteDuration(100, TimeUnit.MILLISECONDS), 1.5, 2)
-    val result = eventTypes.fetchMatchingSchema(eventTypeName, consumerSchema).
-      map(etSchemaOpt => etSchemaOpt.
-        map(etSchema => new AvroSubscriptions[T](baseUri, oAuth2TokenProvider, AvroSchema(eventTypeName, etSchema.schema.asString.get, etSchema.version.get))))
+  def apply[T](baseUri: URI,
+               oAuth2TokenProvider: Option[OAuth2TokenProvider],
+               eventTypeName: EventTypeName,
+               consumerSchema: String,
+               eventTypes: EventTypesInterface)(implicit
+      kanadiHttpConfig: HttpConfig,
+      http: HttpExt,
+      materializer: Materializer,
+      executionContext: ExecutionContext,
+      tag: ClassTag[T]): AvroSubscriptions[T] = {
+    implicit val exponentialBackoffConfig = ExponentialBackoffConfig(FiniteDuration(100, TimeUnit.MILLISECONDS), 1.5, 2)
+    val result = eventTypes
+      .fetchMatchingSchema(eventTypeName, consumerSchema)
+      .map(etSchemaOpt =>
+        etSchemaOpt.map(etSchema =>
+          new AvroSubscriptions[T](baseUri,
+                                   oAuth2TokenProvider,
+                                   AvroSchema(eventTypeName, etSchema.schema.asString.get, etSchema.version.get))))
 
-    Await.result(result, Duration.apply(5, TimeUnit.SECONDS)).
-      getOrElse(throw SchemaNotFoundError(consumerSchema))
+    Await.result(result, Duration.apply(5, TimeUnit.SECONDS)).getOrElse(throw SchemaNotFoundError(consumerSchema))
   }
 }
-class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None, consumerSchema: AvroSchema)(implicit
-                                                                                                    kanadiHttpConfig: HttpConfig,
-                                                                                                    http: HttpExt,
-                                                                                                    materializer: Materializer, tag: ClassTag[T])
- extends Subscriptions(baseUri, oAuth2TokenProvider) {
+class AvroSubscriptions[T](baseUri: URI,
+                           oAuth2TokenProvider: Option[OAuth2TokenProvider] = None,
+                           consumerSchema: AvroSchema)(implicit
+    kanadiHttpConfig: HttpConfig,
+    http: HttpExt,
+    materializer: Materializer,
+    tag: ClassTag[T])
+    extends Subscriptions(baseUri, oAuth2TokenProvider) {
 
   import com.fasterxml.jackson.dataformat.avro.{AvroSchema => JacksonSchema}
 
   private val userSchema = new JacksonSchema(consumerSchema.parsedSchema)
-  private val reader = AvroUtil.AvroMapper.reader(userSchema)
+  private val reader     = AvroUtil.AvroMapper.reader(userSchema)
 
   def eventsStreamedSourceAvro(subscriptionId: SubscriptionId,
                                connectionClosedCallback: Subscriptions.ConnectionClosedCallback =
-                               Subscriptions.ConnectionClosedCallback { _ =>
-                                 ()
-                               },
+                                 Subscriptions.ConnectionClosedCallback { _ =>
+                                   ()
+                                 },
                                streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(implicit
-                                                                                                        flowId: FlowId,
-                                                                                                        executionContext: ExecutionContext,
-                                                                                                        eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
-  : Future[Subscriptions.NakadiSource[T]] = {
+      flowId: FlowId,
+      executionContext: ExecutionContext,
+      eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
+      : Future[Subscriptions.NakadiSource[T]] = {
     import akka.http.scaladsl.model.headers.Accept
-    val uri = getStreamUri(subscriptionId, streamConfig)
+    val uri           = getStreamUri(subscriptionId, streamConfig)
     val streamHeaders = Accept(MediaType.applicationBinary("avro-binary", Compressible)) +: getBaseHeaders
 
     def cleanup(streamId: StreamId, cancelledByClient: Boolean) = {
@@ -597,15 +615,15 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
 
     for {
       headers <- oAuth2TokenProvider match {
-        case None => Future.successful(streamHeaders)
-        case Some(futureProvider) =>
-          futureProvider.value().map { oAuth2Token =>
-            toHeader(oAuth2Token) +: streamHeaders
-          }
-      }
+                   case None => Future.successful(streamHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: streamHeaders
+                     }
+                 }
 
       request = HttpRequest(HttpMethods.GET, uri, headers)
-      _ = logger.debug(request.toString)
+      _       = logger.debug(request.toString)
 
       // Create a single connection to avoid the pool
       connectionFlow = {
@@ -617,10 +635,10 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
       }
 
       response: HttpResponse <- Source
-        .single(request)
-        .via(connectionFlow)
-        .runWith(Sink.head)
-        .map(decodeCompressed)
+                                  .single(request)
+                                  .via(connectionFlow)
+                                  .runWith(Sink.head)
+                                  .map(decodeCompressed)
       _ = logger.debug(response.toString)
       result <- {
         if (response.status.isSuccess()) {
@@ -630,8 +648,8 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
             throw new ExpectedHeader(xNakadiStreamIdHeader, request, response)
           )
 
-          val batchParseFlow = Flow.fromFunction
-            [ByteString, Try[ConsumptionBatch]](bs => Try(ConsumptionBatch.getDecoder.decode(bs.toArray)))
+          val batchParseFlow = Flow.fromFunction[ByteString, Try[ConsumptionBatch]](bs =>
+            Try(ConsumptionBatch.getDecoder.decode(bs.toArray)))
 
           val graph = response.entity.dataBytes
             .via(batchParseFlow)
@@ -639,19 +657,18 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
             .alsoTo(Sink.onComplete { data =>
               val cancelledByClient = data match {
                 case util.Failure(CancelledByClient(_, _)) => true
-                case _ => false
+                case _                                     => false
               }
               cleanup(streamId, cancelledByClient)
               ()
             })
             .map { data =>
-              logger.debug(
-                s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}")
+              logger.debug(s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}")
               data
             }
             .via(parseUserPayloadFlow)
             .map {
-              case Left(error) => throw error
+              case Left(error)   => throw error
               case Right(result) => result
             }
             .withAttributes(ActorAttributes.supervisionStrategy(eventStreamSupervisionDecider
@@ -678,42 +695,44 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
     } yield result
   }
 
-  private def parseUserPayloadFlow: Flow[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]], NotUsed] = {
-    Flow.fromFunction[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]]] {
-      case Success(data) =>
-        val cursor = data.cursor
-        val clazz = classTag[T].runtimeClass
-        Right(
-          SubscriptionEvent(
-            cursor = Subscriptions.
-              Cursor(Partition(cursor.partition), cursor.offset,
-                EventTypeName(cursor.getEventType), CursorToken(UUID.fromString(cursor.getCursorToken))),
-            info = Option(data.info).flatMap(_.asJson.asObject),
-            events = Some {
-              data.events.asScala.map(ev => {
-                val metadata = Metadata.fromNakadiMetadata(ev.metadata)
-                val eventData: T = reader.readValue(ev.payload.array(), clazz).asInstanceOf[T]
-                AvroEvent(eventData, metadata)
-              }).toList
-            }
-          ))
-      case Failure(avroParsingException: AvroRuntimeException) =>
+  private def parseUserPayloadFlow: Flow[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]], NotUsed] =
+    Flow
+      .fromFunction[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]]] {
+        case Success(data) =>
+          val cursor = data.cursor
+          val clazz  = classTag[T].runtimeClass
+          Right(
+            SubscriptionEvent(
+              cursor = Subscriptions.Cursor(Partition(cursor.partition),
+                                            cursor.offset,
+                                            EventTypeName(cursor.getEventType),
+                                            CursorToken(UUID.fromString(cursor.getCursorToken))),
+              info = Option(data.info).flatMap(_.asJson.asObject),
+              events = Some {
+                data.events.asScala.map { ev =>
+                  val metadata     = Metadata.fromNakadiMetadata(ev.metadata)
+                  val eventData: T = reader.readValue(ev.payload.array(), clazz).asInstanceOf[T]
+                  AvroEvent(eventData, metadata)
+                }.toList
+              }
+            ))
+        case Failure(avroParsingException: AvroRuntimeException) =>
+          Left(Subscriptions.EventAvroParsingException(avroParsingException))
+        case Failure(throwable: Throwable) =>
+          Left(throwable)
+      }
+      .recover { case avroParsingException: AvroRuntimeException =>
         Left(Subscriptions.EventAvroParsingException(avroParsingException))
-      case Failure(throwable: Throwable) =>
-        Left(throwable)
-    }.recover {
-      case avroParsingException: AvroRuntimeException => Left(Subscriptions.EventAvroParsingException(avroParsingException))
-    }
-  }
+      }
 }
 
- class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
     extends SubscriptionsInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Subscriptions])
-  protected val baseUri_                               = Uri(baseUri.toString)
+  protected val baseUri_                             = Uri(baseUri.toString)
 
   /** This endpoint creates a subscription for [[org.zalando.kanadi.models.EventTypeName]] 's. The subscription is
     * needed to be able to consume events from EventTypes in a high level way when Nakadi stores the offsets and manages
@@ -1083,7 +1102,6 @@ class AvroSubscriptions[T](baseUri: URI, oAuth2TokenProvider: Option[OAuth2Token
       }
     } yield result
   }
-
 
   protected def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
       : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =

@@ -16,8 +16,8 @@ trait EventTypesInterface {
       executionContext: ExecutionContext): Future[Option[EventType]]
 
   def fetchMatchingSchema(name: EventTypeName, schema: String)(implicit
-                            flowId: FlowId = randomFlowId(),
-                            executionContext: ExecutionContext): Future[Option[EventTypeSchema]]
+      flowId: FlowId = randomFlowId(),
+      executionContext: ExecutionContext): Future[Option[EventTypeSchema]]
 
   def update(name: EventTypeName, eventType: EventType)(implicit
       flowId: FlowId = randomFlowId(),
