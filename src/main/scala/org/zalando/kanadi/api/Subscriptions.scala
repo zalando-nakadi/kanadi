@@ -1625,12 +1625,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     *   operational troubleshooting and log analysis.
     * @return
     */
-  def stats(subscriptionId: SubscriptionId)(implicit
+  def stats(subscriptionId: SubscriptionId, showTimeLag: Boolean = false)(implicit
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]] = {
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "stats")
+      .withQuery(Query("show_time_lag" -> showTimeLag.toString))
 
     for {
       headers <- oAuth2TokenProvider match {
