@@ -1629,9 +1629,13 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]] = {
+    val showTimeLagQuery: Query = if (showTimeLag) {
+      Query("show_time_lag" -> showTimeLag.toString)
+    } else Query.Empty
+
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "stats")
-      .withQuery(Query("show_time_lag" -> showTimeLag.toString))
+      .withQuery(showTimeLagQuery)
 
     for {
       headers <- oAuth2TokenProvider match {
