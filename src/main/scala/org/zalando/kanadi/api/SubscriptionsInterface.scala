@@ -125,7 +125,7 @@ trait SubscriptionsInterface {
 
   def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean
 
-  def stats(subscriptionId: SubscriptionId)(implicit
+  def stats(subscriptionId: SubscriptionId, showTimeLag: Boolean = false)(implicit
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]]
