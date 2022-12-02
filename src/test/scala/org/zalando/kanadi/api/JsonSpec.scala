@@ -2,7 +2,6 @@ package org.zalando.kanadi
 package api
 
 import java.util.UUID
-
 import cats.syntax.either._
 import cats.instances.either._
 import org.specs2.Specification
@@ -10,9 +9,9 @@ import org.specs2.specification.core.SpecStructure
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import org.zalando.kanadi.models.{EventId, SpanCtx, PublishedBy}
-import java.time.OffsetDateTime
+import org.zalando.kanadi.models.{EventId, EventTypeName, PublishedBy, SpanCtx}
 
+import java.time.OffsetDateTime
 import io.circe.CursorOp.DownField
 
 class JsonSpec extends Specification {
@@ -23,6 +22,8 @@ class JsonSpec extends Specification {
     SpanCtx decoding example      $decodeSpnCtx
     SpanCtx encoding example      $encodeSpnCtx
     SpanCtx fail decoding example $badDecodeSpnCtx
+    Decoding EventType example    $decodeEventTypesAnnotationsCtx
+    Encoding EventType example    $encodeEventTypesAnnotationsCtx
     """
 
   val uuid      = UUID.randomUUID()
@@ -55,6 +56,24 @@ class JsonSpec extends Specification {
 
   val undefinedEventJson = s"{$coreEventJson}"
 
+  val eventTypeWithAnnotationsJson =
+    """{
+      |  "name" : "order.order_cancelled",
+      |  "owning_application" : "price-service",
+      |  "category" : "undefined",
+      |  "enrichment_strategies" : [
+      |    "metadata_enrichment"
+      |  ],
+      |  "schema" : {
+      |    "type" : "json_schema",
+      |    "schema" : "{\"type\":\"object\"}"
+      |  },
+      |  "annotations" : {
+      |    "nakadi.io/internal-event-type" : "true",
+      |    "criticality" : "low"
+      |  }
+      |}""".stripMargin
+
   def businessEvent =
     decode[Event[SomeEvent]](businessEventJson) must beRight(Event.Business(testEvent, md))
 
@@ -84,6 +103,15 @@ class JsonSpec extends Specification {
         )))
   )
 
+  val eventTypeWithAnnotationsData = EventType(
+    name = EventTypeName("order.order_cancelled"),
+    owningApplication = "price-service",
+    category = Category.Undefined,
+    enrichmentStrategies = List(EnrichmentStrategy.MetadataEnrichment),
+    schema = EventTypeSchema.anyJsonObject,
+    annotations = Some(Map("nakadi.io/internal-event-type" -> "true", "criticality" -> "low"))
+  )
+
   def decodeSpnCtx =
     decode[Metadata](spanCtxJson) must beRight(spanCtxEventMetadata)
 
@@ -93,4 +121,11 @@ class JsonSpec extends Specification {
   def badDecodeSpnCtx =
     decode[Metadata](spanCtxBadJson) must beLeft(
       DecodingFailure("String", List(DownField("ot-tracer-traceid"), DownField("span_ctx"))))
+
+  def decodeEventTypesAnnotationsCtx =
+    decode[EventType](eventTypeWithAnnotationsJson) must beRight(eventTypeWithAnnotationsData)
+
+  def encodeEventTypesAnnotationsCtx =
+    eventTypeWithAnnotationsData.asJson.printWith(
+      Printer.spaces2.copy(dropNullValues = true)) mustEqual eventTypeWithAnnotationsJson
 }

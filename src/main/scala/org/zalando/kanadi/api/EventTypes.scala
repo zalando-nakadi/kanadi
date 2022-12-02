@@ -300,6 +300,8 @@ object EventTypeOptions {
   *   least one of the scopes in this list. If no scopes provided then anyone can consume from this event type.
   * @param audience
   *   Intended target audience of the event type.
+  * @param annotations
+  *   Annotations of the Nakadi resource.
   * @param orderingKeyFields
   *   This is an optional field which can be useful in case the producer wants to communicate the complete order across
   *   all the events published to all the partitions.
@@ -327,6 +329,7 @@ final case class EventType(
     writeScopes: Option[List[WriteScope]] = None,
     readScopes: Option[List[ReadScope]] = None,
     audience: Option[Audience] = None,
+    annotations: Option[Map[String, String]] = None,
     orderingKeyFields: Option[List[String]] = None,
     orderingInstanceIds: Option[List[String]] = None,
     createdAt: Option[OffsetDateTime] = None,
@@ -334,7 +337,7 @@ final case class EventType(
 )
 
 object EventType {
-  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct19(
+  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct20(
     "name",
     "owning_application",
     "category",
@@ -350,13 +353,14 @@ object EventType {
     "write_scopes",
     "read_scopes",
     "audience",
+    "annotations",
     "ordering_key_fields",
     "ordering_instance_ids",
     "created_at",
     "updated_at"
   )(x => EventType.unapply(x).get)
 
-  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct19(
+  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct20(
     "name",
     "owning_application",
     "category",
@@ -372,6 +376,7 @@ object EventType {
     "write_scopes",
     "read_scopes",
     "audience",
+    "annotations",
     "ordering_key_fields",
     "ordering_instance_ids",
     "created_at",
