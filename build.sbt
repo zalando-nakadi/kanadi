@@ -1,16 +1,19 @@
 name := """kanadi"""
 
-val scala212Version     = "2.12.14"
-val scala213Version     = "2.13.7"
+val scala212Version     = "2.12.17"
+val scala213Version     = "2.13.10"
 val currentScalaVersion = scala212Version
 
-val akkaHttpVersion                    = "10.2.7"
-val akkaStreamsJsonVersion             = "0.8.0"
-val enumeratumCirceVersion             = "1.7.0"
-val circeVersion                       = "0.14.1"
-val akkaVersion                        = "2.6.17"
-val specs2Version                      = "4.13.0"
-val heikoseebergerAkkaHttpCirceVersion = "1.38.2"
+val logbackVersion                     = "1.4.5"
+val scalaLoggingVersion                = "3.9.5"
+val ficusVersion                       = "1.5.2"
+val akkaVersion                        = "2.6.20"  // NOTE: the last version with apache2 license
+val akkaHttpVersion                    = "10.2.10" // NOTE: the last version under apache2 license
+val akkaStreamsJsonVersion             = "0.8.3"
+val enumeratumCirceVersion             = "1.7.2"
+val circeVersion                       = "0.14.4"
+val specs2Version                      = "4.19.2"
+val heikoseebergerAkkaHttpCirceVersion = "1.39.2"
 
 ThisBuild / scalaVersion := currentScalaVersion
 
@@ -89,15 +92,14 @@ libraryDependencies ++= {
     "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion     % Provided,
     "com.typesafe.akka"          %% "akka-stream"         % akkaVersion     % Provided,
     "org.mdedetrich"             %% "censored-raw-header" % "0.7.0",
-    "org.mdedetrich"             %% "webmodels"           % "0.9.1",
     "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
     "io.circe"                   %% "circe-parser"        % circeVersion,
     "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
     "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
     "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
-    "com.iheart"                 %% "ficus"               % "1.5.1",
-    "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.4",
-    "ch.qos.logback"              % "logback-classic"     % "1.2.7",
+    "com.iheart"                 %% "ficus"               % ficusVersion,
+    "com.typesafe.scala-logging" %% "scala-logging"       % scalaLoggingVersion,
+    "ch.qos.logback"              % "logback-classic"     % logbackVersion,
     "org.specs2"                 %% "specs2-core"         % specs2Version   % Test
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
@@ -213,3 +215,10 @@ releaseProcess := Seq[ReleaseStep](
   commitNextVersion,
   pushChanges
 )
+
+// COMMANDS
+addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt it:scalafmt")
+addCommandAlias("chk", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck it:scalafmtCheck")
+addCommandAlias("plg", "; reload plugins ; libraryDependencies ; reload return")
+// NOTE: to use version check for plugins, add to the meta-project (/project/project) sbt-updates.sbt with "sbt-updates" plugin as well.
+addCommandAlias("upd", ";dependencyUpdates; reload plugins; dependencyUpdates; reload return")

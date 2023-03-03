@@ -22,7 +22,6 @@ import io.circe.syntax._
 import org.zalando.kanadi.api.defaults._
 import org.zalando.kanadi.models._
 import org.mdedetrich.akka.stream.support.CirceStreamSupport
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider, Problem}
 import org.zalando.kanadi.models
 
 import scala.collection.JavaConverters._
@@ -524,7 +523,7 @@ final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: Str
     s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
 }
 
-case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
@@ -554,11 +553,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       entity   <- Marshal(subscription).to[RequestEntity]
@@ -656,11 +655,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
         )
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -694,11 +693,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -734,11 +733,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.DELETE, uri, headers)
@@ -769,11 +768,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -830,11 +829,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     val streamHeaders = RawHeader(xNakadiStreamIdHeader, streamId.id.toString) +: baseHeaders(flowId)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(streamHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: streamHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: streamHeaders
                      }
                  }
       entity <- Marshal(subscriptionCursor).to[RequestEntity]
@@ -870,11 +869,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       entity <- {
@@ -1006,11 +1005,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       )
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request = HttpRequest(HttpMethods.GET, uri, headers)
@@ -1151,11 +1150,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
     }
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(streamHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: streamHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: streamHeaders
                      }
                  }
 
@@ -1638,11 +1637,11 @@ case class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenPr
       .withQuery(showTimeLagQuery)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)

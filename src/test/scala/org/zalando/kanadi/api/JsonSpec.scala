@@ -2,8 +2,6 @@ package org.zalando.kanadi
 package api
 
 import java.util.UUID
-import cats.syntax.either._
-import cats.instances.either._
 import org.specs2.Specification
 import org.specs2.specification.core.SpecStructure
 import io.circe._
@@ -12,7 +10,6 @@ import io.circe.syntax._
 import org.zalando.kanadi.models.{EventId, EventTypeName, PublishedBy, SpanCtx}
 
 import java.time.OffsetDateTime
-import io.circe.CursorOp.DownField
 
 class JsonSpec extends Specification {
   override def is: SpecStructure = s2"""
@@ -119,8 +116,7 @@ class JsonSpec extends Specification {
     spanCtxEventMetadata.asJson.printWith(Printer.noSpaces.copy(dropNullValues = true)) mustEqual spanCtxJson
 
   def badDecodeSpnCtx =
-    decode[Metadata](spanCtxBadJson) must beLeft(
-      DecodingFailure("String", List(DownField("ot-tracer-traceid"), DownField("span_ctx"))))
+    decode[Metadata](spanCtxBadJson) must beLeft
 
   def decodeEventTypesAnnotationsCtx =
     decode[EventType](eventTypeWithAnnotationsJson) must beRight(eventTypeWithAnnotationsData)

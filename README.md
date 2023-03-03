@@ -654,7 +654,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import org.mdedetrich.webmodels.FlowId
+import org.zalando.kanadi.models.FlowId
 import org.zalando.kanadi.models.{SubscriptionId, StreamId}
 import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
 import org.zalando.kanadi.api.Subscriptions.EventStreamContext
@@ -669,7 +669,7 @@ object Main extends App with Config {
   
   val subscriptionsClient = Subscriptions(nakadiUri)
 
-  import org.mdedetrich.webmodels.FlowId
+  import org.zalando.kanadi.models.FlowId
   import org.zalando.kanadi.models.{SubscriptionId, StreamId}
   import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
   import akka.stream.Supervision
@@ -707,7 +707,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import org.mdedetrich.webmodels.FlowId
+import org.zalando.kanadi.models.FlowId
 import org.zalando.kanadi.models.{SubscriptionId, StreamId}
 import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
 import org.zalando.kanadi.api.Subscriptions.EventStreamContext
@@ -740,7 +740,7 @@ object Main extends App with Config {
   
   val subscriptionsClient = Subscriptions(nakadiUri)
 
-  import org.mdedetrich.webmodels.FlowId
+  import org.zalando.kanadi.models.FlowId
   import org.zalando.kanadi.models.{SubscriptionId, StreamId}
   import org.zalando.kanadi.api.{Subscriptions, SubscriptionCursor}
   import akka.stream.Supervision
@@ -790,12 +790,12 @@ Another way of handling this case is to simply decode the event as a `JsonObject
 class with a decoder (i.e. `subscriptionsClient.eventsStreamedManaged[JsonObject]`). This wont fail (since any
 event data from Nakadi is going to be a valid JSON object).
 
-#### FlowId/Oauth2Token
+#### FlowId
 
 If you want to specify a flowId, you need to have an implicit flowId in scope, i.e.
 
 ```scala
-import org.mdedetrich.webmodels.FlowId
+import org.zalando.kanadi.models.FlowId
 import java.util.UUID
 
 implicit val flowId = FlowId(UUID.randomUUID.toString)
@@ -809,21 +809,21 @@ For OAuth2 implicit flow authentication, you need to provide a function that def
 
 ```scala
 import com.typesafe.config.ConfigFactory
-import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
+import org.zalando.kanadi.models.{AuthToken, AuthTokenProvider}
 import org.zalando.kanadi.api.Subscriptions
 import org.zalando.kanadi.models._
 import org.zalando.kanadi.Config
-import scala.concurrent.Future  
+import scala.concurrent.Future
 
 object Main extends App with Config {
   val config = ConfigFactory.load()
-  
-  val oAuth2TokenProvider = Option(
-    OAuth2TokenProvider(
-      () => Future.successful(OAuth2Token(sys.props("TOKEN"))))
+
+  val AuthTokenProvider = Option(
+    AuthTokenProvider(
+      () => Future.successful(AuthToken(sys.props("TOKEN"))))
   )
-    
-  val subscriptionsClient = Subscriptions(nakadiUri, oAuth2TokenProvider)
+
+  val subscriptionsClient = Subscriptions(nakadiUri, authTokenProvider)
 }
 ```
 

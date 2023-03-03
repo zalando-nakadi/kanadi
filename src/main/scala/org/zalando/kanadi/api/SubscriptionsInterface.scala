@@ -3,8 +3,7 @@ package org.zalando.kanadi.api
 import akka.stream.UniqueKillSwitch
 import akka.stream.scaladsl.Source
 import io.circe.Decoder
-import org.mdedetrich.webmodels.FlowId
-import org.zalando.kanadi.models.{EventTypeName, StreamId, SubscriptionId}
+import org.zalando.kanadi.models.{EventTypeName, FlowId, StreamId, SubscriptionId}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
