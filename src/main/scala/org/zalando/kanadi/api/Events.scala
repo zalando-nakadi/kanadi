@@ -16,9 +16,7 @@ import enumeratum._
 import io.circe.Decoder.Result
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider}
-import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
-import org.mdedetrich.webmodels.circe._
+import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -153,6 +151,7 @@ final case class Metadata(eid: EventId = EventId.random,
                           publishedBy: Option[PublishedBy] = None)
 
 object Metadata {
+  import org.zalando.kanadi.models.codec.FlowIdCodec._
 
   implicit val metadataEncoder: Encoder[Metadata] = Encoder.forProduct10(
     "eid",
@@ -249,7 +248,7 @@ object Events {
   }
 }
 
-case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+case class Events(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     exponentialBackoffConfig: ExponentialBackoffConfig,
     http: HttpExt,
@@ -412,7 +411,7 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "events")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     val finalEvents = if (fillMetadata) {
       events.map {
@@ -425,11 +424,11 @@ case class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider]
     } else events
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
 

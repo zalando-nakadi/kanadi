@@ -9,13 +9,12 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider}
-import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
+import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.zalando.kanadi.models._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+case class Registry(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
@@ -37,14 +36,14 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "enrichment-strategies")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -89,14 +88,14 @@ case class Registry(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri =
       baseUri_.withPath(baseUri_.path / "registry" / "partition-strategies")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)

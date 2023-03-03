@@ -1,6 +1,6 @@
 package org.zalando.kanadi
 
-import org.mdedetrich.webmodels.{OAuth2Token, OAuth2TokenProvider}
+import org.zalando.kanadi.models.{AuthToken, AuthTokenProvider}
 
 import scala.concurrent.Future
 
@@ -20,5 +20,5 @@ object TokenProvider {
 
   private val token = getDataFromEnv("TOKEN")
 
-  lazy val environmentTokenProvider = Some(OAuth2TokenProvider(() => Future.successful(OAuth2Token(token))))
+  lazy val environmentTokenProvider = Some(AuthTokenProvider(() => Future.successful(AuthToken(token))))
 }

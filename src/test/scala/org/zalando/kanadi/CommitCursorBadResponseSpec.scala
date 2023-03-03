@@ -1,19 +1,17 @@
 package org.zalando.kanadi
 
 import java.util.UUID
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import io.circe.JsonObject
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
 import org.zalando.kanadi.api._
-import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
+import org.zalando.kanadi.models.{EventTypeName, FlowId, SubscriptionId}
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._

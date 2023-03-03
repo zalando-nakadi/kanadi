@@ -9,7 +9,6 @@ import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.Config
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
 

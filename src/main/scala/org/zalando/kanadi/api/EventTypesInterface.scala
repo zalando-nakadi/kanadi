@@ -1,7 +1,6 @@
 package org.zalando.kanadi.api
 
-import org.mdedetrich.webmodels.FlowId
-import org.zalando.kanadi.models.EventTypeName
+import org.zalando.kanadi.models.{EventTypeName, FlowId}
 
 import scala.concurrent.{ExecutionContext, Future}
 
