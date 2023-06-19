@@ -4,17 +4,6 @@ val scala212Version     = "2.12.17"
 val scala213Version     = "2.13.10"
 val currentScalaVersion = scala212Version
 
-val logbackVersion                     = "1.4.5"
-val scalaLoggingVersion                = "3.9.5"
-val ficusVersion                       = "1.5.2"
-val akkaVersion                        = "2.6.20"  // NOTE: the last version with apache2 license
-val akkaHttpVersion                    = "10.2.10" // NOTE: the last version under apache2 license
-val akkaStreamsJsonVersion             = "0.8.3"
-val enumeratumCirceVersion             = "1.7.2"
-val circeVersion                       = "0.14.4"
-val specs2Version                      = "4.19.2"
-val heikoseebergerAkkaHttpCirceVersion = "1.39.2"
-
 ThisBuild / scalaVersion := currentScalaVersion
 
 ThisBuild / crossScalaVersions := Seq(currentScalaVersion, scala213Version)
@@ -87,25 +76,9 @@ scalacOptions ++= {
 }
 
 libraryDependencies ++= {
-  Seq(
-    "com.typesafe.akka"          %% "akka-http"           % akkaHttpVersion % Provided,
-    "com.typesafe.akka"          %% "akka-slf4j"          % akkaVersion     % Provided,
-    "com.typesafe.akka"          %% "akka-stream"         % akkaVersion     % Provided,
-    "org.mdedetrich"             %% "censored-raw-header" % "0.7.0",
-    "com.beachape"               %% "enumeratum-circe"    % enumeratumCirceVersion,
-    "io.circe"                   %% "circe-parser"        % circeVersion,
-    "org.mdedetrich"             %% "akka-stream-circe"   % akkaStreamsJsonVersion,
-    "org.mdedetrich"             %% "akka-http-circe"     % akkaStreamsJsonVersion,
-    "de.heikoseeberger"          %% "akka-http-circe"     % heikoseebergerAkkaHttpCirceVersion,
-    "com.iheart"                 %% "ficus"               % ficusVersion,
-    "com.typesafe.scala-logging" %% "scala-logging"       % scalaLoggingVersion,
-    "ch.qos.logback"              % "logback-classic"     % logbackVersion,
-    "org.specs2"                 %% "specs2-core"         % specs2Version   % Test
-  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+  Dependencies.akkaDeps ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
-      Seq(
-        "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0" % Test
-      )
+      Dependencies.test213Seq.map (_ % "test")
     case _ =>
       Seq.empty
   })
