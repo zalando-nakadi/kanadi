@@ -7,7 +7,6 @@ import org.apache.pekko.http.scaladsl.HttpExt
 import org.apache.pekko.http.scaladsl.marshalling.Marshal
 import org.apache.pekko.http.scaladsl.model.headers.RawHeader
 import org.apache.pekko.http.scaladsl.model._
-import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
 import org.apache.pekko.stream.Materializer
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
 import enumeratum._

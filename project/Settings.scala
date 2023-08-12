@@ -87,8 +87,8 @@ object Settings {
           scalacOptionsFor12
       }
     },
-    crossScalaVersions        := supportedScalaVersions,
-    scalaVersion              := globalScalaVersion,
+    ThisBuild / crossScalaVersions := supportedScalaVersions,
+    ThisBuild / scalaVersion  := globalScalaVersion,
     ThisBuild / turbo         := true,
     ThisBuild / versionScheme := Some(VersionScheme.EarlySemVer),
     resolvers                 := Resolver.combineDefaultResolvers(sharedResolvers),
