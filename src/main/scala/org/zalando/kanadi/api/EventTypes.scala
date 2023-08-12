@@ -3,21 +3,20 @@ package org.zalando.kanadi.api
 import java.net.URI
 import java.time.OffsetDateTime
 
-import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.Materializer
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.Materializer
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
 import io.circe._
 import io.circe.syntax._
 import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.zalando.kanadi.api.defaults._
 import org.zalando.kanadi.models._
+import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -416,8 +415,7 @@ case class EventTypes(baseUri: URI, authTokenProvider: Option[AuthTokenProvider]
       response <- http.singleRequest(request)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[List[EventType]]
+          unmarshalAs[List[EventType]](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
         } else
           processNotSuccessful(request, response)
       }
@@ -515,8 +513,7 @@ case class EventTypes(baseUri: URI, authTokenProvider: Option[AuthTokenProvider]
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[EventType]
+          unmarshalAs[EventType](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(Some.apply)
         } else
           processNotSuccessful(request, response)

@@ -3,25 +3,23 @@ package org.zalando.kanadi.api
 import java.net.URI
 import java.time.OffsetDateTime
 import java.util.concurrent.ConcurrentHashMap
-import akka.NotUsed
+import org.apache.pekko.NotUsed
 import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{Connection, RawHeader}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model.Uri.Query
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.{Connection, RawHeader}
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 import enumeratum._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.syntax._
-import org.zalando.kanadi.api.defaults._
+import org.mdedetrich.pekko.stream.support.CirceStreamSupport
 import org.zalando.kanadi.models._
-import org.mdedetrich.akka.stream.support.CirceStreamSupport
 import org.zalando.kanadi.models
 
 import scala.collection.JavaConverters._
@@ -504,7 +502,7 @@ object Subscriptions {
                                 streamKeepAliveLimit: Option[Int] = None,
                                 commitTimeout: Option[FiniteDuration] = None)
 
-  /** Nakadi stream represented as an akka-stream [[Source]]
+  /** Nakadi stream represented as an pekko-stream [[Source]]
     * @param streamId
     * @param source
     * @param request
@@ -566,10 +564,10 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[Subscription]
-        } else
+          unmarshalAs[Subscription](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
+        } else {
           processNotSuccessful(request, response)
+        }
       }
     } yield result
   }
@@ -667,8 +665,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionQuery]
+          unmarshalAs[SubscriptionQuery](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
         } else
           response.status match {
             case _ => processNotSuccessful(request, response)
@@ -708,8 +705,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[Subscription]
+          unmarshalAs[Subscription](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(Some.apply)
         } else
           processNotSuccessful(request, response)
@@ -784,8 +780,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
             response.discardEntityBytes()
             Future.successful(None)
           case s if s.isSuccess() =>
-            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-              .to[SubscriptionCursor]
+            unmarshalAs[SubscriptionCursor](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
               .map(x => Some(x))
           case _ => processNotSuccessful(request, response)
         }
@@ -846,8 +841,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[CommitCursorResponse]
+          unmarshalAs[CommitCursorResponse](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map { commitCursorsResponse =>
               logger.warn(
                 s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id} At least one cursor failed to commit, details are $commitCursorsResponse")
@@ -904,7 +898,6 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
     GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
-      import org.mdedetrich.akka.stream.support.CirceStreamSupport
 
       implicit def successDecoder[A](implicit decoder: Decoder[A]): Decoder[Success[A]] =
         Decoder.instance[Success[A]] { c =>
@@ -1043,8 +1036,8 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           case _ =>
             if (response.status.isSuccess()) {
               for {
-                string <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                            .to[String]
+                string <-
+                  unmarshalAs[String](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                 result <-
                   Source(
                     string
@@ -1238,7 +1231,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
     * he gets in a stream.
     *
     * This call lets you register a callback which gets execute every time an event is streamed. There are different
-    * types of callbacks depending on how you want to handle failure. The timeout for the akka http request is the same
+    * types of callbacks depending on how you want to handle failure. The timeout for the pekko http request is the same
     * as streamTimeout with a small buffer. Note that typically clients should be using [[eventsStreamedManaged]] as
     * this will handle disconnects/reconnects
     *
@@ -1463,7 +1456,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
-    akka.pattern
+    org.apache.pekko.pattern
       .after(reconnectDelay, http.system.scheduler)(
         eventsStreamedManaged[T](
           subscriptionId,
@@ -1488,9 +1481,10 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
   /** Creates an event stream using [[eventsStreamed]] however also manages disconnects and reconnects from the server.
     * Typically clients want to use this as they don't need to handle these situations manually.
     *
-    * This uses [[akka.pattern.after]] to recreate the streams in the case of server disconnects/no empty slots and
-    * cursor resets. The timeouts respectively can be configured with [[HttpConfig.serverDisconnectRetryDelay]] and
-    * [[HttpConfig.noEmptySlotsCursorResetRetryDelay]]. The `connectionClosedCallback` parameter is still respected.
+    * This uses [[org.apache.pekko.pattern.after]] to recreate the streams in the case of server disconnects/no empty
+    * slots and cursor resets. The timeouts respectively can be configured with
+    * [[HttpConfig.serverDisconnectRetryDelay]] and [[HttpConfig.noEmptySlotsCursorResetRetryDelay]]. The
+    * `connectionClosedCallback` parameter is still respected.
     *
     * NOTE: If the connection is closed by the client explicitly using the [[closeHttpConnection]] method then
     * [[eventsStreamedManaged]] will not re-establish a connection.
@@ -1592,7 +1586,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
     }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
       logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
         .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
-      akka.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
+      org.apache.pekko.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
         eventsStreamedSourceManaged[T](
           subscriptionId,
           connectionClosedCallback,
@@ -1652,8 +1646,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionStats]
+          unmarshalAs[SubscriptionStats](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(x => Some(x))
         } else
           processNotSuccessful(request, response)

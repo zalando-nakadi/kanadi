@@ -2,9 +2,9 @@ package org.zalando.kanadi
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.stream.Supervision
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.stream.Supervision
 import com.typesafe.config.ConfigFactory
 import io.circe.{Decoder, Encoder}
 import org.specs2.Specification
@@ -185,7 +185,7 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(6 seconds, system.scheduler)(Future.successful(subscriptionClosed))
+      org.apache.pekko.pattern.after(6 seconds, system.scheduler)(Future.successful(subscriptionClosed))
 
     val future = for {
       closed       <- closedFuture

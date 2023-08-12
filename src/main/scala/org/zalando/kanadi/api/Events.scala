@@ -4,14 +4,13 @@ import java.net.URI
 import java.time.OffsetDateTime
 
 import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.Materializer
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.Materializer
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import enumeratum._
 import io.circe.Decoder.Result
 import io.circe.syntax._
@@ -327,7 +326,7 @@ case class Events(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = N
         logger.warn(
           s"Events with eid's ${eventIds.map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
 
-        akka.pattern.after(newDuration, http.system.scheduler)(
+        org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
           publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))
       }
     }
@@ -373,7 +372,7 @@ case class Events(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = N
 
           val newNotValidEvents = (currentNotValidEvents ++ noNeedToRetryResponse).distinct
 
-          akka.pattern.after(newDuration, http.system.scheduler)(
+          org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
             publishWithRecover(name, eventsToRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
         }
       case e: RuntimeException
@@ -408,6 +407,8 @@ case class Events(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = N
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
+    import org.mdedetrich.pekko.http.support.CirceHttpSupport._
+
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "events")
 
