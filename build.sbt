@@ -67,7 +67,6 @@ lazy val root = (project in file("."))
     name := "kanadi"
   )
 
-
 // COMMANDS
 addCommandAlias("fmt", "all scalafmtSbt scalafmt test:scalafmt it:scalafmt")
 addCommandAlias("chk", "all scalafmtSbtCheck scalafmtCheck test:scalafmtCheck it:scalafmtCheck")
