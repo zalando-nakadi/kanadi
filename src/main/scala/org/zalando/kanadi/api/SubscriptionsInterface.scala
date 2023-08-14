@@ -1,7 +1,7 @@
 package org.zalando.kanadi.api
 
-import akka.stream.UniqueKillSwitch
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.UniqueKillSwitch
+import org.apache.pekko.stream.scaladsl.Source
 import io.circe.Decoder
 import org.zalando.kanadi.models.{EventTypeName, FlowId, StreamId, SubscriptionId}
 

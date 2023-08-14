@@ -3,8 +3,8 @@ package org.zalando.kanadi
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
@@ -133,9 +133,9 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- eventualStreamOne
-      _              <- akka.pattern.after(100 millis, system.scheduler)(Future.successful(()))
+      _              <- org.apache.pekko.pattern.after(100 millis, system.scheduler)(Future.successful(()))
       streamTwo       = eventualStreamTwo
-      _              <- akka.pattern.after(100 millis, system.scheduler)(Future.successful(()))
+      _              <- org.apache.pekko.pattern.after(100 millis, system.scheduler)(Future.successful(()))
       _               = subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
       _              <- streamTwo
     } yield ()

@@ -1,6 +1,6 @@
 package org.zalando.kanadi.models
 
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, HttpResponse}
 
 class GeneralError(val problem: Problem, override val httpRequest: HttpRequest, override val httpResponse: HttpResponse)
     extends HttpServiceError(httpRequest, httpResponse, Right(problem)) {
