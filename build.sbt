@@ -9,16 +9,21 @@ libraryDependencies ++= {
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Use(
-    UseRef.Public("docker", "login-action", "v1"),
+    UseRef.Public("docker", "login-action", "v2"),
     name = Some("Login to GitHub Container Registry"),
     params = Map(
-      "registry" -> "docker.pkg.github.com",
+      "registry" -> "ghcr.io",
       "username" -> "${{ github.actor }}",
       "password" -> "${{ secrets.GITHUB_TOKEN }}"
     )
   ),
   WorkflowStep.Run(List("docker-compose up -d"), name = Some("Launch Nakadi")),
   WorkflowStep.Sbt(List("clean", "coverage", "test"), name = Some("Build project"))
+)
+
+ThisBuild / githubWorkflowJavaVersions := Seq(
+  // See https://github.com/sbt/sbt-github-actions#jdk-settings
+  JavaSpec.temurin("11")
 )
 
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
@@ -43,7 +48,7 @@ ThisBuild / githubWorkflowUseSbtThinClient := false
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq()
 
-import ReleaseTransformations._
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations.*
 
 releaseCrossBuild := false
 releaseProcess := Seq[ReleaseStep](

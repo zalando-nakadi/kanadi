@@ -24,7 +24,7 @@ This means that in order to pull the necessary images you need to create a [gith
 with the scope `read:packages`. After this you need to login to docker for github container registry, i.e.
 
 ```shell
-docker login -u <github username> -p <personal access token> docker.pkg.github.com
+docker login -u <github username> -p <personal access token> ghcr.io
 ```
 
 After this `docker-compose` should work as expected

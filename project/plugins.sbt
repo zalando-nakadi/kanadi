@@ -4,6 +4,6 @@ addSbtPlugin("org.xerial.sbt"                    % "sbt-sonatype"       % "3.9.2
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings"   % "3.0.2")
 addSbtPlugin("org.scoverage"                     % "sbt-scoverage"      % "2.0.8")
 addSbtPlugin("org.scoverage"                     % "sbt-coveralls"      % "1.3.9")
-addSbtPlugin("com.codecommit"                    % "sbt-github-actions" % "0.14.2")
+addSbtPlugin("com.github.sbt"                    % "sbt-github-actions" % "0.15.0")
 addSbtPlugin("com.github.sbt"                    % "sbt-release"        % "1.1.0")
 addSbtPlugin("com.timushev.sbt"                  % "sbt-updates"        % "0.6.4")
