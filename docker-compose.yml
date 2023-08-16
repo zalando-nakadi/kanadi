@@ -16,7 +16,7 @@ services:
       - NAKADI_PLUGINS_AUTHZ_FACTORY=org.crazycoder.nakadiauthzfileplugin.FileAuthorizationServiceFactory
 
   postgres:
-    image: docker.pkg.github.com/adyach/nakadi-docker/postgres:9.5
+    image: ghcr.io/adyach/nakadi-docker/postgres:9.5
     ports:
       - "5432:5432"
     environment:
@@ -25,12 +25,12 @@ services:
       POSTGRES_DB: local_nakadi_db
 
   zookeeper:
-    image: docker.pkg.github.com/adyach/nakadi-docker/zookeeper:3.5.8
+    image: ghcr.io/adyach/nakadi-docker/zookeeper:3.5.8
     ports:
       - "2181:2181"
 
   kafka:
-    image: docker.pkg.github.com/adyach/kafka-docker/kafka-docker:2.7.0
+    image: ghcr.io/adyach/kafka-docker/kafka-docker:2.7.0
     ports:
       - "9092:9092"
     depends_on:
