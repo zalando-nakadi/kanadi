@@ -1,5 +1,5 @@
 ## Kanadi
-[![ci](https://img.shields.io/github/workflow/status/zalando-nakadi/kanadi/Continuous%20Integration.svg)](https://github.com/zaland-nakadi/kanadi/actions)
+[![ci](https://img.shields.io/github/workflow/status/zalando-nakadi/kanadi/Continuous%20Integration.svg)](https://github.com/zalando-nakadi/kanadi/actions)
 [![codecov](https://coveralls.io/repos/github/zalando-nakadi/kanadi/badge.svg?branch=master)](https://coveralls.io/github/zalando-nakadi/kanadi?branch=master)
 [![Maven Central Version](https://img.shields.io/maven-central/v/org.zalando/kanadi_2.12.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.zalando%22%20AND%20a%3A%22kanadi_2.12%22)
 [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/zalando-kanadi/Lobby)
