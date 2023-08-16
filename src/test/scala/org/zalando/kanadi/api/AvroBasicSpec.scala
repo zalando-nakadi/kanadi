@@ -1,18 +1,17 @@
 package org.zalando.kanadi.api
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.zalando.kanadi.{Config, Utils}
-import org.zalando.kanadi.models.{EventTypeName, StreamId}
+import org.zalando.kanadi.models.{FlowId, EventTypeName}
 import org.zalando.kanadi.api.EventTypeSchema.Type
 
 import java.util.UUID
 import io.circe.syntax._
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.specification.{AfterAll, BeforeAll}
 import org.specs2.specification.core.SpecStructure
 import org.zalando.kanadi.api.Event.{AvroEvent, eventDecoder}

@@ -2,27 +2,22 @@ package org.zalando.kanadi.api
 
 import java.net.URI
 import java.time.OffsetDateTime
-import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, _}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.Materializer
+
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.stream.Materializer
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport.marshaller
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport.unmarshaller
 import enumeratum._
 import io.circe._
 import io.circe.syntax._
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider}
-import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
+import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.zalando.kanadi.api.defaults._
 import org.zalando.kanadi.models._
+import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 sealed abstract class Audience(val id: String) extends EnumEntry with Product with Serializable {
   override val entryName = id
@@ -304,6 +299,8 @@ object EventTypeOptions {
   *   least one of the scopes in this list. If no scopes provided then anyone can consume from this event type.
   * @param audience
   *   Intended target audience of the event type.
+  * @param annotations
+  *   Annotations of the Nakadi resource.
   * @param orderingKeyFields
   *   This is an optional field which can be useful in case the producer wants to communicate the complete order across
   *   all the events published to all the partitions.
@@ -331,6 +328,7 @@ final case class EventType(
     writeScopes: Option[List[WriteScope]] = None,
     readScopes: Option[List[ReadScope]] = None,
     audience: Option[Audience] = None,
+    annotations: Option[Map[String, String]] = None,
     orderingKeyFields: Option[List[String]] = None,
     orderingInstanceIds: Option[List[String]] = None,
     createdAt: Option[OffsetDateTime] = None,
@@ -338,7 +336,7 @@ final case class EventType(
 )
 
 object EventType {
-  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct19(
+  implicit val eventTypeEncoder: Encoder[EventType] = Encoder.forProduct20(
     "name",
     "owning_application",
     "category",
@@ -354,13 +352,14 @@ object EventType {
     "write_scopes",
     "read_scopes",
     "audience",
+    "annotations",
     "ordering_key_fields",
     "ordering_instance_ids",
     "created_at",
     "updated_at"
   )(x => EventType.unapply(x).get)
 
-  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct19(
+  implicit val eventTypeDecoder: Decoder[EventType] = Decoder.forProduct20(
     "name",
     "owning_application",
     "category",
@@ -376,6 +375,7 @@ object EventType {
     "write_scopes",
     "read_scopes",
     "audience",
+    "annotations",
     "ordering_key_fields",
     "ordering_instance_ids",
     "created_at",
@@ -383,7 +383,7 @@ object EventType {
   )(EventType.apply)
 }
 
-case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+case class EventTypes(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
@@ -401,14 +401,14 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
   def list()(implicit flowId: FlowId = randomFlowId(), executionContext: ExecutionContext): Future[List[EventType]] = {
     val uri = baseUri_.withPath(baseUri_.path / "event-types")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -416,8 +416,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
       response <- http.singleRequest(request)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[List[EventType]]
+          unmarshalAs[List[EventType]](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
         } else
           processNotSuccessful(request, response)
       }
@@ -459,14 +458,14 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
       executionContext: ExecutionContext): Future[Unit] = {
     val uri = baseUri_.withPath(baseUri_.path / "event-types")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       entity   <- Marshal(eventType).to[RequestEntity]
@@ -497,14 +496,14 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -515,8 +514,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[EventType]
+          unmarshalAs[EventType](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(Some.apply)
         } else
           processNotSuccessful(request, response)
@@ -530,10 +528,10 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "schemas").withQuery(Uri.Query(("fetch", "true")))
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
     val etSchema    = EventTypeSchema(None, None, EventTypeSchema.Type.AvroSchema, schema.asJson)
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
                      futureProvider.value().map { oAuth2Token =>
@@ -549,8 +547,7 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[EventTypeSchema]
+          unmarshalAs[EventTypeSchema](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(Some.apply)
         } else
           processNotSuccessful(request, response)
@@ -576,14 +573,14 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       entity   <- Marshal(eventType).to[RequestEntity]
@@ -619,14 +616,14 @@ case class EventTypes(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvi
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name)
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
       request   = HttpRequest(HttpMethods.DELETE, uri, headers)

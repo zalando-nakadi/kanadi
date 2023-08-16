@@ -1,17 +1,15 @@
 package org.zalando.kanadi
 
 import java.util.UUID
-
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.specification.core.SpecStructure
 import org.specs2.specification.{AfterAll, BeforeAll}
 import org.zalando.kanadi.api.{Category, EventType, EventTypes, Events, Subscription, Subscriptions}
-import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
+import org.zalando.kanadi.models.{EventTypeName, FlowId, SubscriptionId}
 
 import scala.collection.parallel.mutable
 import scala.concurrent.duration._

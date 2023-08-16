@@ -2,34 +2,32 @@ package org.zalando.kanadi.api
 
 import java.net.URI
 import java.time.OffsetDateTime
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
-import akka.NotUsed
+import java.util.concurrent.ConcurrentHashMap
+import org.apache.avro.AvroRuntimeException
+import org.apache.pekko.NotUsed
 import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.MediaType.Compressible
-import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{Connection, RawHeader}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream._
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model.MediaType.Compressible
+import org.apache.pekko.http.scaladsl.model.Uri.Query
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.{Connection, RawHeader}
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 import enumeratum._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.syntax._
-import org.apache.avro.AvroRuntimeException
-import org.zalando.kanadi.models._
-import org.zalando.kanadi.models.Partition
-import org.mdedetrich.akka.stream.support.CirceStreamSupport
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider, Problem}
+import org.mdedetrich.pekko.stream.support.CirceStreamSupport
 import org.zalando.kanadi.api.Event.AvroEvent
+import org.zalando.kanadi.models._
 import org.zalando.kanadi.models
 import org.zalando.nakadi.generated.avro.ConsumptionBatch
 
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -214,11 +212,11 @@ object CommitCursorResponse {
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
 
-  def apply(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider])(implicit
+  def apply(baseUri: URI, authTokenProvider: Option[AuthTokenProvider])(implicit
       kanadiHttpConfig: HttpConfig,
       http: HttpExt,
       materializer: Materializer): Subscriptions =
-    new Subscriptions(baseUri, oAuth2TokenProvider)(kanadiHttpConfig, http, materializer)
+    new Subscriptions(baseUri, authTokenProvider)(kanadiHttpConfig, http, materializer)
 
   sealed abstract class Errors(override val httpRequest: HttpRequest,
                                override val httpResponse: HttpResponse,
@@ -523,7 +521,7 @@ object Subscriptions {
                                 streamKeepAliveLimit: Option[Int] = None,
                                 commitTimeout: Option[FiniteDuration] = None)
 
-  /** Nakadi stream represented as an akka-stream [[Source]]
+  /** Nakadi stream represented as an pekko-stream [[Source]]
     * @param streamId
     * @param source
     * @param request
@@ -545,7 +543,7 @@ final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: Str
 object AvroSubscriptions {
 
   def apply[T](baseUri: URI,
-               oAuth2TokenProvider: Option[OAuth2TokenProvider],
+               authTokenProvider: Option[AuthTokenProvider],
                eventTypeName: EventTypeName,
                consumerSchema: String,
                eventTypes: EventTypesInterface)(implicit
@@ -560,20 +558,20 @@ object AvroSubscriptions {
       .map(etSchemaOpt =>
         etSchemaOpt.map(etSchema =>
           new AvroSubscriptions[T](baseUri,
-                                   oAuth2TokenProvider,
+                                   authTokenProvider,
                                    AvroSchema(eventTypeName, etSchema.schema.asString.get, etSchema.version.get))))
 
     Await.result(result, Duration.apply(5, TimeUnit.SECONDS)).getOrElse(throw SchemaNotFoundError(consumerSchema))
   }
 }
 class AvroSubscriptions[T](baseUri: URI,
-                           oAuth2TokenProvider: Option[OAuth2TokenProvider] = None,
+                           authTokenProvider: Option[AuthTokenProvider] = None,
                            consumerSchema: AvroSchema)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer,
     tag: ClassTag[T])
-    extends Subscriptions(baseUri, oAuth2TokenProvider) {
+    extends Subscriptions(baseUri, authTokenProvider) {
 
   import com.fasterxml.jackson.dataformat.avro.{AvroSchema => JacksonSchema}
 
@@ -590,7 +588,7 @@ class AvroSubscriptions[T](baseUri: URI,
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
       : Future[Subscriptions.NakadiSource[T]] = {
-    import akka.http.scaladsl.model.headers.Accept
+    import org.apache.pekko.http.scaladsl.model.headers.Accept
     val uri           = getStreamUri(subscriptionId, streamConfig)
     val streamHeaders = Accept(MediaType.applicationBinary("avro-binary", Compressible)) +: getBaseHeaders
 
@@ -614,7 +612,7 @@ class AvroSubscriptions[T](baseUri: URI,
     }
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(streamHeaders)
                    case Some(futureProvider) =>
                      futureProvider.value().map { oAuth2Token =>
@@ -703,10 +701,12 @@ class AvroSubscriptions[T](baseUri: URI,
           val clazz  = classTag[T].runtimeClass
           Right(
             SubscriptionEvent(
-              cursor = Subscriptions.Cursor(Partition(cursor.partition),
-                                            cursor.offset,
-                                            EventTypeName(cursor.getEventType),
-                                            CursorToken(UUID.fromString(cursor.getCursorToken))),
+              cursor = Subscriptions.Cursor(
+                models.Partition(cursor.partition),
+                cursor.offset,
+                EventTypeName(cursor.getEventType),
+                CursorToken(UUID.fromString(cursor.getCursorToken))
+              ),
               info = Option(data.info).flatMap(_.asJson.asObject),
               events = Some {
                 data.events.asScala.map { ev =>
@@ -726,7 +726,7 @@ class AvroSubscriptions[T](baseUri: URI,
       }
 }
 
-class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
@@ -756,11 +756,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       entity   <- Marshal(subscription).to[RequestEntity]
@@ -769,10 +769,10 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[Subscription]
-        } else
+          unmarshalAs[Subscription](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
+        } else {
           processNotSuccessful(request, response)
+        }
       }
     } yield result
   }
@@ -858,11 +858,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
         )
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -870,8 +870,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       response <- http.singleRequest(request).map(decodeCompressed)
       result <- {
         if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionQuery]
+          unmarshalAs[SubscriptionQuery](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
         } else
           response.status match {
             case _ => processNotSuccessful(request, response)
@@ -896,11 +895,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -911,8 +910,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[Subscription]
+          unmarshalAs[Subscription](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(Some.apply)
         } else
           processNotSuccessful(request, response)
@@ -936,11 +934,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.DELETE, uri, headers)
@@ -971,11 +969,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val uri = baseUri_.withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -987,8 +985,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
             response.discardEntityBytes()
             Future.successful(None)
           case s if s.isSuccess() =>
-            Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-              .to[SubscriptionCursor]
+            unmarshalAs[SubscriptionCursor](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
               .map(x => Some(x))
           case _ => processNotSuccessful(request, response)
         }
@@ -1032,11 +1029,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     val streamHeaders = RawHeader(xNakadiStreamIdHeader, streamId.id.toString) +: baseHeaders(flowId)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(streamHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: streamHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: streamHeaders
                      }
                  }
       entity <- Marshal(subscriptionCursor).to[RequestEntity]
@@ -1049,8 +1046,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[CommitCursorResponse]
+          unmarshalAs[CommitCursorResponse](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map { commitCursorsResponse =>
               logger.warn(
                 s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id} At least one cursor failed to commit, details are $commitCursorsResponse")
@@ -1072,11 +1068,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "cursors")
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       entity <- {
@@ -1107,7 +1103,6 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
     GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
-      import org.mdedetrich.akka.stream.support.CirceStreamSupport
 
       implicit def successDecoder[A](implicit decoder: Decoder[A]): Decoder[Success[A]] =
         Decoder.instance[Success[A]] { c =>
@@ -1208,11 +1203,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       )
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request = HttpRequest(HttpMethods.GET, uri, headers)
@@ -1246,8 +1241,8 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           case _ =>
             if (response.status.isSuccess()) {
               for {
-                string <- Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-                            .to[String]
+                string <-
+                  unmarshalAs[String](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
                 result <-
                   Source(
                     string
@@ -1353,11 +1348,11 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     }
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(streamHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: streamHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: streamHeaders
                      }
                  }
 
@@ -1441,7 +1436,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     * he gets in a stream.
     *
     * This call lets you register a callback which gets execute every time an event is streamed. There are different
-    * types of callbacks depending on how you want to handle failure. The timeout for the akka http request is the same
+    * types of callbacks depending on how you want to handle failure. The timeout for the pekko http request is the same
     * as streamTimeout with a small buffer. Note that typically clients should be using [[eventsStreamedManaged]] as
     * this will handle disconnects/reconnects
     *
@@ -1666,7 +1661,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
-    akka.pattern
+    org.apache.pekko.pattern
       .after(reconnectDelay, http.system.scheduler)(
         eventsStreamedManaged[T](
           subscriptionId,
@@ -1691,9 +1686,10 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
   /** Creates an event stream using [[eventsStreamed]] however also manages disconnects and reconnects from the server.
     * Typically clients want to use this as they don't need to handle these situations manually.
     *
-    * This uses [[akka.pattern.after]] to recreate the streams in the case of server disconnects/no empty slots and
-    * cursor resets. The timeouts respectively can be configured with [[HttpConfig.serverDisconnectRetryDelay]] and
-    * [[HttpConfig.noEmptySlotsCursorResetRetryDelay]]. The `connectionClosedCallback` parameter is still respected.
+    * This uses [[org.apache.pekko.pattern.after]] to recreate the streams in the case of server disconnects/no empty
+    * slots and cursor resets. The timeouts respectively can be configured with
+    * [[HttpConfig.serverDisconnectRetryDelay]] and [[HttpConfig.noEmptySlotsCursorResetRetryDelay]]. The
+    * `connectionClosedCallback` parameter is still respected.
     *
     * NOTE: If the connection is closed by the client explicitly using the [[closeHttpConnection]] method then
     * [[eventsStreamedManaged]] will not re-establish a connection.
@@ -1795,7 +1791,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
       logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
         .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
-      akka.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
+      org.apache.pekko.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
         eventsStreamedSourceManaged[T](
           subscriptionId,
           connectionClosedCallback,
@@ -1827,19 +1823,24 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
     *   operational troubleshooting and log analysis.
     * @return
     */
-  def stats(subscriptionId: SubscriptionId)(implicit
+  def stats(subscriptionId: SubscriptionId, showTimeLag: Boolean = false)(implicit
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]] = {
+    val showTimeLagQuery: Query = if (showTimeLag) {
+      Query("show_time_lag" -> showTimeLag.toString)
+    } else Query.Empty
+
     val uri = baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "stats")
+      .withQuery(showTimeLagQuery)
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders(flowId))
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders(flowId)
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders(flowId)
                      }
                  }
       request   = HttpRequest(HttpMethods.GET, uri, headers)
@@ -1850,8 +1851,7 @@ class Subscriptions(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvide
           response.discardEntityBytes()
           Future.successful(None)
         } else if (response.status.isSuccess()) {
-          Unmarshal(response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
-            .to[SubscriptionStats]
+          unmarshalAs[SubscriptionStats](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
             .map(x => Some(x))
         } else
           processNotSuccessful(request, response)

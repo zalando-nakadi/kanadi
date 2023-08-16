@@ -1,6 +1,6 @@
 package org.zalando.kanadi
 
-import org.mdedetrich.webmodels.FlowId
+import org.zalando.kanadi.models.FlowId
 
 object Utils {
   def randomFlowId(): FlowId =

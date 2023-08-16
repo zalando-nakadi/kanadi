@@ -1,10 +1,9 @@
 package org.zalando.kanadi.api
 
-import akka.stream.UniqueKillSwitch
-import akka.stream.scaladsl.Source
+import org.apache.pekko.stream.UniqueKillSwitch
+import org.apache.pekko.stream.scaladsl.Source
 import io.circe.Decoder
-import org.mdedetrich.webmodels.FlowId
-import org.zalando.kanadi.models.{EventTypeName, StreamId, SubscriptionId}
+import org.zalando.kanadi.models.{EventTypeName, FlowId, StreamId, SubscriptionId}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -125,7 +124,7 @@ trait SubscriptionsInterface {
 
   def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean
 
-  def stats(subscriptionId: SubscriptionId)(implicit
+  def stats(subscriptionId: SubscriptionId, showTimeLag: Boolean = false)(implicit
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Option[SubscriptionStats]]

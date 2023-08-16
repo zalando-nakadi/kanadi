@@ -1,14 +1,14 @@
 package org.zalando.kanadi
 
-import akka.http.scaladsl.coding._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{HttpEntity, HttpHeader, HttpRequest, HttpResponse}
-import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.Materializer
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.{HttpEntity, HttpHeader, HttpRequest, HttpResponse}
+import org.apache.pekko.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import org.apache.pekko.stream.Materializer
 import com.typesafe.scalalogging.CanLog
 import io.circe._
-import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
-import org.mdedetrich.webmodels.{FlowId, OAuth2Token, Problem}
+import io.circe.parser._
+import org.apache.pekko.util.ByteString
+import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.slf4j.MDC
 import org.zalando.kanadi.models._
 
@@ -24,9 +24,11 @@ package object api {
       Printer.noSpaces.copy(dropNullValues = true)
 
     def baseHeaders(flowId: FlowId) =
-      List(RawHeader(`X-Flow-ID`, flowId.value), `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate))
+      List(RawHeader(XFlowID, flowId.value), `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate))
 
     def decodeCompressed(response: HttpResponse): HttpResponse = {
+      import org.apache.pekko.http.scaladsl.coding._
+
       val decoder = response.encoding match {
         case HttpEncodings.gzip =>
           Coders.Gzip
@@ -40,15 +42,15 @@ package object api {
     }
   }
 
-  private[api] def toHeader(oAuth2Token: OAuth2Token)(implicit kanadiHttpConfig: HttpConfig): HttpHeader =
-    if (kanadiHttpConfig.censorOAuth2Token)
-      CensoredRawHeader("Authorization", s"Bearer ${oAuth2Token.value}", "Bearer <secret>")
-    else RawHeader("Authorization", s"Bearer ${oAuth2Token.value}")
+  private[api] def toHeader(authToken: AuthToken)(implicit kanadiHttpConfig: HttpConfig): HttpHeader =
+    if (kanadiHttpConfig.censorAuthToken)
+      MaskedRawHeader("Authorization", s"Bearer ${authToken.value}", "Bearer <secret>")
+    else RawHeader("Authorization", s"Bearer ${authToken.value}")
 
   private[api] def stripAuthToken(request: HttpRequest)(implicit kanadiHttpConfig: HttpConfig): HttpRequest = {
     val headers = request.headers.map {
       case Authorization(OAuth2BearerToken(token)) =>
-        toHeader(OAuth2Token(token))
+        toHeader(AuthToken(token))
       case rest => rest
     }
     request.withHeaders(headers)
@@ -82,14 +84,12 @@ package object api {
     }
 
   private[kanadi] def maybeStringToProblem(string: String): Option[Problem] = {
-    import org.mdedetrich.webmodels.circe._
+    import org.zalando.kanadi.models.codec.ProblemCodec._
     if (string.isEmpty)
       None
-    else
-      for {
-        asJson    <- io.circe.parser.parse(string).toOption
-        asProblem <- asJson.as[Problem].toOption
-      } yield asProblem
+    else {
+      decode[Problem](string).toOption
+    }
   }
 
   private[kanadi] def unmarshalStringOrProblem(entity: HttpEntity)(implicit
@@ -102,4 +102,13 @@ package object api {
       tryDecodeAsProblem = maybeStringToProblem(asString)
 
     } yield tryDecodeAsProblem.toRight(asString)
+
+  private[api] def unmarshalAs[T: Decoder](
+      entity: HttpEntity)(implicit materializer: Materializer, executionContext: ExecutionContext): Future[T] = {
+    val dataF = entity.dataBytes.runFold(ByteString.empty)(_ ++ _).map(_.utf8String)
+    dataF.flatMap { data =>
+      val errOrDecoder = decode[T](data)
+      Future.fromTry(errOrDecoder.toTry)
+    }
+  }
 }

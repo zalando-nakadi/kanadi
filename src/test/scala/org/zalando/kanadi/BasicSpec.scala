@@ -3,10 +3,9 @@ package org.zalando.kanadi
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
@@ -181,7 +180,7 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
     } yield subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
 
     val waitForCloseFuture =
-      akka.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
+      org.apache.pekko.pattern.after(3 seconds, system.scheduler)(Future.successful(subscriptionClosed.get()))
 
     val future = for {
       closed               <- closedFuture

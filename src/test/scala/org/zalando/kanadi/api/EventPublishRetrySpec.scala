@@ -2,29 +2,27 @@ package org.zalando.kanadi.api
 
 import java.net.{ServerSocket, URI}
 import java.util.UUID
-
 import defaults._
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives._
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.server.Directives._
 import com.typesafe.config.ConfigFactory
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe._
-import org.mdedetrich.webmodels.FlowId
 import org.specs2.Specification
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.FutureMatchers
 import org.specs2.specification.core.SpecStructure
 import org.zalando.kanadi.Config
-import org.zalando.kanadi.models.{EventTypeName, ExponentialBackoffConfig, HttpConfig}
+import org.zalando.kanadi.models.{EventTypeName, ExponentialBackoffConfig, FlowId, HttpConfig}
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
+import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.Ficus._
 import org.zalando.kanadi.api.Events.Errors
+import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 
 class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
 

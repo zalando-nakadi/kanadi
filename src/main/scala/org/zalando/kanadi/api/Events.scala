@@ -3,30 +3,26 @@ package org.zalando.kanadi.api
 import java.net.URI
 import java.time.{OffsetDateTime, ZoneOffset}
 import defaults._
-import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.MediaType.Compressible
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.Materializer
+import org.apache.avro.Schema
+import org.apache.pekko.http.scaladsl.HttpExt
+import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.MediaType.Compressible
+import org.apache.pekko.http.scaladsl.model.headers.RawHeader
+import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshal
+import org.apache.pekko.stream.Materializer
 import com.fasterxml.jackson.dataformat.avro.AvroMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.zalando.nakadi.generated.avro.PublishingBatch
 import com.typesafe.scalalogging.{Logger, LoggerTakingImplicit}
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport.marshaller
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport.unmarshaller
 import enumeratum._
 import io.circe.Decoder.Result
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
-import org.apache.avro.Schema
-import org.mdedetrich.webmodels.{FlowId, OAuth2TokenProvider}
-import org.mdedetrich.webmodels.RequestHeaders.`X-Flow-ID`
-import org.mdedetrich.webmodels.circe._
 import org.zalando.kanadi.api.Event.AvroEvent
 import org.zalando.kanadi.api.Metadata.toNakadiMetadata
+import org.zalando.kanadi.models.HttpHeaders.XFlowID
 import org.zalando.kanadi.models._
+import org.zalando.nakadi.generated.avro.PublishingBatch
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -167,6 +163,7 @@ final case class Metadata(eid: EventId = EventId.random,
 
 object Metadata {
   import org.zalando.nakadi.generated.avro.{Metadata => NakadiMetadata}
+  import org.zalando.kanadi.models.codec.FlowIdCodec._
   import collection.JavaConverters._
 
   implicit val metadataEncoder: Encoder[Metadata] = Encoder.forProduct12(
@@ -241,12 +238,12 @@ object Metadata {
 
 object Events {
 
-  def apply(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider])(implicit
+  def apply(baseUri: URI, authTokenProvider: Option[AuthTokenProvider])(implicit
       kanadiHttpConfig: HttpConfig,
       exponentialBackoffConfig: ExponentialBackoffConfig,
       http: HttpExt,
       materializer: Materializer) =
-    new Events(baseUri, oAuth2TokenProvider)(kanadiHttpConfig, exponentialBackoffConfig, http, materializer)
+    new Events(baseUri, authTokenProvider)(kanadiHttpConfig, exponentialBackoffConfig, http, materializer)
 
   final case class BatchItemResponse(eid: Option[EventId],
                                      publishingStatus: PublishingStatus,
@@ -328,7 +325,7 @@ case class AvroSchema(eventType: EventTypeName, schema: String, schemaVersion: S
 object AvroPublisher {
 
   def apply[T](baseUri: URI,
-               oAuth2TokenProvider: Option[OAuth2TokenProvider],
+               authTokenProvider: Option[AuthTokenProvider],
                eventTypeName: EventTypeName,
                publisherSchema: String,
                eventTypes: EventTypesInterface)(implicit
@@ -343,7 +340,7 @@ object AvroPublisher {
       .map(etSchemaOpt =>
         etSchemaOpt.map(etSchema =>
           new AvroPublisher[T](baseUri,
-                               oAuth2TokenProvider,
+                               authTokenProvider,
                                AvroSchema(eventTypeName, etSchema.schema.asString.get, etSchema.version.get))))
 
     Await.result(result, Duration.apply(5, TimeUnit.SECONDS)).getOrElse(throw SchemaNotFoundError(publisherSchema))
@@ -351,14 +348,13 @@ object AvroPublisher {
 
 }
 
-class AvroPublisher[T](baseUri: URI,
-                       oAuth2TokenProvider: Option[OAuth2TokenProvider] = None,
-                       publisherSchema: AvroSchema)(implicit
+class AvroPublisher[T](baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None, publisherSchema: AvroSchema)(
+    implicit
     kanadiHttpConfig: HttpConfig,
     exponentialBackoffConfig: ExponentialBackoffConfig,
     http: HttpExt,
     materializer: Materializer)
-    extends Events(baseUri, oAuth2TokenProvider) {
+    extends Events(baseUri, authTokenProvider) {
   import org.zalando.nakadi.generated.avro.Envelope
   import com.fasterxml.jackson.dataformat.avro.{AvroSchema => JacksonSchema}
   import collection.JavaConverters._
@@ -395,7 +391,7 @@ class AvroPublisher[T](baseUri: URI,
         logger.warn(
           s"Events with eid's ${eventIds.map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
 
-        akka.pattern.after(newDuration, http.system.scheduler)(
+        org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
           publishWithRecoverAvro(events, currentNotValidEvents, newDuration, count + 1))
       }
     }
@@ -436,7 +432,7 @@ class AvroPublisher[T](baseUri: URI,
 
           val newNotValidEvents = (currentNotValidEvents ++ noNeedToRetryResponse).distinct
 
-          akka.pattern.after(newDuration, http.system.scheduler)(
+          org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
             publishWithRecoverAvro(eventsToRetry, newNotValidEvents, newDuration, count + 1))
         }
       case e: RuntimeException
@@ -454,6 +450,7 @@ class AvroPublisher[T](baseUri: URI,
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
+    import org.mdedetrich.pekko.http.support.CirceHttpSupport._
 
     val envelopes = events.map { event =>
       new Envelope(toNakadiMetadata(event.metadata, publisherSchema.schemaVersion),
@@ -464,9 +461,9 @@ class AvroPublisher[T](baseUri: URI,
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / publisherSchema.eventType.name / "events")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
                      futureProvider.value().map { oAuth2Token =>
@@ -496,7 +493,7 @@ class AvroPublisher[T](baseUri: URI,
 
 }
 
-class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = None)(implicit
+class Events(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     exponentialBackoffConfig: ExponentialBackoffConfig,
     http: HttpExt,
@@ -575,7 +572,7 @@ class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = No
         logger.warn(
           s"Events with eid's ${eventIds.map(_.id).mkString(",")} failed to submit, retrying in ${newDuration.toMillis} millis")
 
-        akka.pattern.after(newDuration, http.system.scheduler)(
+        org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
           publishWithRecover(name, events, currentNotValidEvents, fillMetadata, newDuration, count + 1))
       }
     }
@@ -621,7 +618,7 @@ class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = No
 
           val newNotValidEvents = (currentNotValidEvents ++ noNeedToRetryResponse).distinct
 
-          akka.pattern.after(newDuration, http.system.scheduler)(
+          org.apache.pekko.pattern.after(newDuration, http.system.scheduler)(
             publishWithRecover(name, eventsToRetry, newNotValidEvents, fillMetadata, newDuration, count + 1))
         }
       case e: RuntimeException
@@ -656,10 +653,12 @@ class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = No
       flowId: FlowId = randomFlowId(),
       executionContext: ExecutionContext
   ): Future[Unit] = {
+    import org.mdedetrich.pekko.http.support.CirceHttpSupport._
+
     val uri =
       baseUri_.withPath(baseUri_.path / "event-types" / name.name / "events")
 
-    val baseHeaders = List(RawHeader(`X-Flow-ID`, flowId.value))
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
 
     val finalEvents = if (fillMetadata) {
       events.map {
@@ -672,11 +671,11 @@ class Events(baseUri: URI, oAuth2TokenProvider: Option[OAuth2TokenProvider] = No
     } else events
 
     for {
-      headers <- oAuth2TokenProvider match {
+      headers <- authTokenProvider match {
                    case None => Future.successful(baseHeaders)
                    case Some(futureProvider) =>
-                     futureProvider.value().map { oAuth2Token =>
-                       toHeader(oAuth2Token) +: baseHeaders
+                     futureProvider.value().map { authToken =>
+                       toHeader(authToken) +: baseHeaders
                      }
                  }
 
