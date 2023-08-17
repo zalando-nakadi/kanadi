@@ -5,7 +5,7 @@ object Dependencies {
   object versions {
     val logback                  = "1.4.11"
     val scalaLogging             = "3.9.5"
-    val ficus                    = "1.5.2"
+    val pureConfig               = "0.17.4"
     val pekko                    = "1.0.1"
     val pekkoHttp                = "1.0.0"
     val pekkoStreamJson          = "1.0.0"
@@ -22,7 +22,7 @@ object Dependencies {
   private val circeParser      = "io.circe"                   %% "circe-parser"       % versions.circe
   private val pekkoStreamCirce = "org.mdedetrich"             %% "pekko-stream-circe" % versions.pekkoStreamJson
   private val pekkoHttpCirce   = "org.mdedetrich"             %% "pekko-http-circe"   % versions.pekkoStreamJson
-  private val ficus            = "com.iheart"                 %% "ficus"              % versions.ficus
+  private val pureConfig       = "com.github.pureconfig"      %% "pureconfig"         % versions.pureConfig
   private val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"      % versions.scalaLogging
   private val logbackClassic   = "ch.qos.logback"              % "logback-classic"    % versions.logback
   private val specs2           = "org.specs2"                 %% "specs2-core"        % versions.specs2
@@ -45,7 +45,7 @@ object Dependencies {
       circeParser,
       pekkoStreamCirce,
       pekkoHttpCirce,
-      ficus,
+      pureConfig,
       scalaLogging,
       logbackClassic
     ) map (_ % "compile")
