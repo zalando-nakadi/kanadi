@@ -1,22 +1,15 @@
 package org.zalando.kanadi.models.codec
 
 import io.circe.parser._
-import org.specs2.Specification
-import org.specs2.matcher.MatchResult
+import org.scalatest.EitherValues
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.models.Problem
 
 import java.net.URI
 
-final class ProblemCodecSpec extends Specification {
+final class ProblemCodecSpec extends AnyFreeSpec with Matchers with EitherValues {
   import ProblemCodec._
-
-  def is =
-    s2"""
-    decode problemA as $decodeProblemA
-    decode problemB as $decodeProblemB
-    decode problemC as $decodeProblemC
-    decode problemD as $decodeProblemD
-  """
 
   private val problemAstr =
     """{"title":"Forbidden","status":403,"detail":"Access on READ subscription:e1eeeb6d-1819-48de-924e-ded2fe983c9e denied"}"""
@@ -57,7 +50,7 @@ final class ProblemCodecSpec extends Specification {
     instance = None
   )
 
-  def decodeProblemA: String => MatchResult[Either[Throwable, Problem]] = (name: String) => {
+  "decode problemA" in {
     val expected = problemA
     val actual =
       for {
@@ -65,10 +58,10 @@ final class ProblemCodecSpec extends Specification {
         problem <- parsed.as[Problem]
       } yield problem
 
-    actual must beRight(expected)
+    actual.value mustEqual expected
   }
 
-  def decodeProblemB: String => MatchResult[Either[Throwable, Problem]] = (name: String) => {
+  "decode problemB as" in {
     val expected = problemB
     val actual =
       for {
@@ -76,10 +69,10 @@ final class ProblemCodecSpec extends Specification {
         problem <- parsed.as[Problem]
       } yield problem
 
-    actual must beRight(expected)
+    actual.value mustEqual expected
   }
 
-  def decodeProblemC: String => MatchResult[Either[Throwable, Problem]] = (name: String) => {
+  "decode problemC as" in {
     val expected = problemC
     val actual =
       for {
@@ -87,10 +80,10 @@ final class ProblemCodecSpec extends Specification {
         problem <- parsed.as[Problem]
       } yield problem
 
-    actual must beRight(expected)
+    actual.value mustEqual expected
   }
 
-  def decodeProblemD: String => MatchResult[Either[Throwable, Problem]] = (name: String) => {
+  "decode problemD as" in {
     val expected = problemD
     val actual =
       for {
@@ -98,6 +91,6 @@ final class ProblemCodecSpec extends Specification {
         problem <- parsed.as[Problem]
       } yield problem
 
-    actual must beRight(expected)
+    actual.value mustEqual expected
   }
 }

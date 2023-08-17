@@ -2,14 +2,10 @@ package org.zalando.kanadi
 
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
-
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api.Subscriptions.{
   ConnectionClosedCallback,
   EventCallback,
@@ -20,47 +16,28 @@ import org.zalando.kanadi.models._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.language.postfixOps
 import scala.util.Success
 
-class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    Create Event Type          $createEventType
-    Create Subscription events $createSubscription
-    Start streaming            $startStreaming
-    Publish events             $publishEvents
-    Receive events             $receiveEvents
-    Get Subscription stats     $getSubscriptionStats
-    Close connection           $closeConnection
-    Delete subscription        $deleteSubscription
-    Delete event type          $deleteEventType
-    """
+class BasicSpec extends AsyncFreeTestKitSpec(ActorSystem("BasicSpec")) with PekkoTestKitBase with Matchers with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
   val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
-
-  def createEventType = (name: String) => {
-    val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
-
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
-  }
 
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
   val currentStreamId: Promise[StreamId]             = Promise()
@@ -70,9 +47,14 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
   val modifySourceFunctionActivated: AtomicBoolean   = new AtomicBoolean(false)
   val streamComplete: Promise[Unit]                  = Promise()
 
-  def createSubscription = (name: String) => {
+  "Create Event Type" in { () =>
+    val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
+    future.map(_ => succeed)
+  }
+
+  "Create Subscription events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         None,
@@ -83,38 +65,17 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
 
     future.onComplete {
       case scala.util.Success(subscription) =>
-        subscription.id.pp
+        pp(subscription.id)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
-
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 5 seconds)
+    future.map(result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
-  def publishEvents = (name: String) => {
+  "Start streaming" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
-    val uUIDOne = java.util.UUID.randomUUID()
-    val uUIDTwo = java.util.UUID.randomUUID()
-
-    events = Some(
-      List(
-        SomeEvent("Robert", "Terwilliger", uUIDOne),
-        SomeEvent("Die", "Bart, Die", uUIDTwo)
-      ))
-
-    val future = eventsClient.publish[SomeEvent](
-      eventTypeName,
-      events.get.map(x => Event.Business(x))
-    )
-
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
-  }
-
-  def startStreaming = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     def stream =
       for {
         subscriptionId <- currentSubscriptionId.future
@@ -147,33 +108,54 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
 
     stream.onComplete {
       case scala.util.Success(streamId) =>
-        streamId.pp
+        pp(streamId)
         currentStreamId.complete(Success(streamId))
       case _ =>
     }
 
-    currentStreamId.future.map(_ => ()) must be_==(())
-      .await(0, timeout = 4 minutes)
+    currentStreamId.future.map(_ => succeed)
 
   }
 
-  def receiveEvents = (name: String) => streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
-
-  def getSubscriptionStats = (name: String) => {
+  "Publish events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
+    val uUIDOne = java.util.UUID.randomUUID()
+    val uUIDTwo = java.util.UUID.randomUUID()
+
+    events = Some(
+      List(
+        SomeEvent("Robert", "Terwilliger", uUIDOne),
+        SomeEvent("Die", "Bart, Die", uUIDTwo)
+      ))
+
+    val future = eventsClient.publish[SomeEvent](
+      eventTypeName,
+      events.get.map(x => Event.Business(x))
+    )
+
+    future.map(_ => succeed)
+  }
+
+  "Receive events" in { () =>
+    streamComplete.future.map(_ => succeed)
+  }
+
+  "Get Subscription stats" in { implicit td: TestData =>
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    pp(flowId)
 
     val statsPresent = for {
       subscriptionId <- currentSubscriptionId.future
       stats          <- subscriptionsClient.stats(subscriptionId)
     } yield stats.isDefined
 
-    statsPresent must be_==(true).await(retries = 3, timeout = 10 seconds)
+    statsPresent.map(result => result mustEqual true)
   }
 
-  def closeConnection = (name: String) => {
+  "Close connection" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- currentStreamId.future
@@ -188,26 +170,26 @@ class BasicSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatc
       modifySourceActivated = modifySourceFunctionActivated.get()
     } yield (closed, waitForClose, modifySourceActivated)
 
-    future must be_==((true, true, true)).await(0, timeout = 1 minute)
+    future.map(result => result mustEqual ((true, true, true)))
   }
 
-  def deleteSubscription = (name: String) => {
+  "Delete subscription" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       delete         <- subscriptionsClient.delete(subscriptionId)
     } yield delete
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def deleteEventType = (name: String) => {
+  "Delete event type" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = eventsTypesClient.delete(eventTypeName)
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
 }

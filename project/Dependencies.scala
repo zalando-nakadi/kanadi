@@ -11,7 +11,7 @@ object Dependencies {
     val pekkoStreamJson          = "1.0.0"
     val enumeratumCirce          = "1.7.3"
     val circe                    = "0.14.5"
-    val specs2                   = "4.20.2"
+    val scalaTest                = "3.2.16"
     val scalaParallelCollections = "0.2.0"
   }
 
@@ -25,12 +25,13 @@ object Dependencies {
   private val pureConfig       = "com.github.pureconfig"      %% "pureconfig"         % versions.pureConfig
   private val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"      % versions.scalaLogging
   private val logbackClassic   = "ch.qos.logback"              % "logback-classic"    % versions.logback
-  private val specs2           = "org.specs2"                 %% "specs2-core"        % versions.specs2
+  private val scalaTest        = "org.scalatest"              %% "scalatest"          % versions.scalaTest
+  private val pekkoTestKit     = "org.apache.pekko"           %% "pekko-testkit"      % versions.pekko
 
   private val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % versions.scalaParallelCollections
 
-  private val testSeq = Seq(specs2)
+  private val testSeq = Seq(scalaTest, pekkoTestKit)
 
   val test213Seq: Seq[ModuleID] = Seq(scalaParallelCollections)
 

@@ -2,42 +2,34 @@ package org.zalando.kanadi
 
 import java.util.UUID
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
 import io.circe.JsonObject
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models.{EventTypeName, FlowId, SubscriptionId}
 
 import scala.concurrent.Promise
-import scala.concurrent.duration._
 import scala.util._
 
-class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    Create Event Type          $createEventType
-    Create Subscription events $createSubscription
-    Stream subscription        $streamSubscriptionId
-  """
+class CommitCursorBadResponseSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("CommitCursorBadResponseSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
@@ -48,15 +40,15 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
   val currentSubscriptionId: Promise[SubscriptionId]                             = Promise()
   val successfullyParsedBadCommitResponse: Promise[Option[CommitCursorResponse]] = Promise()
 
-  def createEventType = (name: String) => {
+  "Create Event Type" in { () =>
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def createSubscription = (name: String) => {
+  "Create Subscription events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         None,
@@ -67,20 +59,20 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
 
     future.onComplete {
       case Success(subscription) =>
-        subscription.id.pp
+        pp(subscription.id)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 5 seconds)
+    future.map(result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
-  def streamSubscriptionId = (name: String) => {
+  "Stream subscription" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
 
-    val future = for {
+    for {
       subscriptionId <- currentSubscriptionId.future
       _ = subscriptionsClient.eventsStreamedSource[JsonObject](subscriptionId).map { nakadiSource =>
             nakadiSource.source
@@ -100,8 +92,6 @@ class CommitCursorBadResponseSpec(implicit ec: ExecutionEnv) extends Specificati
               .runWith(Sink.foreach(_ => ()))
           }
       result <- successfullyParsedBadCommitResponse.future
-    } yield result
-
-    future must beSome.await(0, timeout = 2 minutes)
+    } yield result must not be empty
   }
 }

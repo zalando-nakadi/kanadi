@@ -2,48 +2,36 @@ package org.zalando.kanadi
 
 import java.util.UUID
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.stream.scaladsl.{Keep, Sink}
 import com.typesafe.config.ConfigFactory
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api.Subscriptions.{CursorWithoutToken, defaultEventStreamSupervisionDecider}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Success
 
-class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    Create Event Type          $createEventType
-    Create Subscription events $createSubscription
-    Start streaming            $startStreaming
-    Publish events             $publishEvents
-    Receive events from source $receiveEvents
-    Close connection           $closeConnection
-    Reset cursors              $resetCursors
-    Delete subscription        $deleteSubscription
-    Delete event type          $deleteEventType
-    """
+class ResetCursorsSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("ResetCursorsSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
@@ -51,10 +39,10 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
 
-  def createEventType = (name: String) => {
+  "Create Event Type" in { () =>
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
@@ -64,9 +52,9 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
   val streamComplete: Promise[Unit]                  = Promise()
   var cursorWithoutToken: Option[CursorWithoutToken] = None
 
-  def createSubscription = (name: String) => {
+  "Create Subscription events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         None,
@@ -77,18 +65,18 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
 
     future.onComplete {
       case scala.util.Success(subscription) =>
-        subscription.id.pp
+        pp(subscription.id)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 5 seconds)
+    future.map(result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
-  def startStreaming = (name: String) => {
+  "Start streaming" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     def stream =
       for {
         subscriptionId <- currentSubscriptionId.future
@@ -118,19 +106,17 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
 
     stream.onComplete {
       case scala.util.Success(streamId) =>
-        streamId.pp
+        pp(streamId)
         currentStreamId.complete(Success(streamId))
       case _ =>
     }
 
-    currentStreamId.future.map(_ => ()) must be_==(())
-      .await(0, timeout = 4 minutes)
-
+    currentStreamId.future.map(_ => succeed)
   }
 
-  def publishEvents = (name: String) => {
+  "Publish events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
@@ -145,14 +131,16 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
       events.get.map(x => Event.Business(x))
     )
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def receiveEvents = (name: String) => streamComplete.future must be_==(()).await(0, timeout = 5 minutes)
+  "Receive events from source" in { () =>
+    streamComplete.future.map(_ => succeed)
+  }
 
-  def closeConnection = (name: String) => {
+  "Close connection" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- currentStreamId.future
@@ -160,38 +148,38 @@ class ResetCursorsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
 
     val future = closedFuture
 
-    future must be_==(true).await(0, timeout = 1 minute)
+    future.map(_ => succeed)
   }
 
-  def resetCursors = (name: String) => {
+  "Reset cursors" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val resF = for {
       subscriptionId <- currentSubscriptionId.future
       res <- subscriptionsClient.resetCursors(subscriptionId,
                                               Some(SubscriptionCursorWithoutToken(List(cursorWithoutToken.get))))
     } yield res
 
-    resF must be_==(true).await(5, timeout = 5 minute)
+    resF.map(result => result mustEqual true)
   }
 
-  def deleteSubscription = (name: String) => {
+  "Delete subscription" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       delete         <- subscriptionsClient.delete(subscriptionId)
     } yield delete
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def deleteEventType = (name: String) => {
+  "Delete event type" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = eventsTypesClient.delete(eventTypeName)
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
 }

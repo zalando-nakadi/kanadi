@@ -2,43 +2,36 @@ package org.zalando.kanadi
 
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
-
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api.Subscriptions.{EventCallback, defaultEventStreamSupervisionDecider}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.language.postfixOps
 import scala.util.Success
 
-class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    Create Event Type                            $createEventType
-    Create Subscription events                   $createSubscription
-    Start streaming and recover from noEmptySlot $startStreaming
-    """
+class NoEmptySlotsSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("NoEmptySlotsSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
@@ -46,10 +39,10 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
 
-  def createEventType = (name: String) => {
+  "Create Event Type" in { () =>
     val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
@@ -60,9 +53,9 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
   val modifySourceFunctionActivated: AtomicBoolean   = new AtomicBoolean(false)
   val streamComplete: Promise[Unit]                  = Promise()
 
-  def createSubscription = (name: String) => {
+  "Create Subscription events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         None,
@@ -73,38 +66,18 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
 
     future.onComplete {
       case scala.util.Success(subscription) =>
-        subscription.id.pp
+        pp(subscription)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 5 seconds)
+    future.map(result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
-  def publishEvents = (name: String) => {
+  "Start streaming and recover from noEmptySlot" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
-    val uUIDOne = java.util.UUID.randomUUID()
-    val uUIDTwo = java.util.UUID.randomUUID()
-
-    events = Some(
-      List(
-        SomeEvent("Robert", "Terwilliger", uUIDOne),
-        SomeEvent("Die", "Bart, Die", uUIDTwo)
-      ))
-
-    val future = eventsClient.publish[SomeEvent](
-      eventTypeName,
-      events.get.map(x => Event.Business(x))
-    )
-
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
-  }
-
-  def startStreaming = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
 
     // Start stream One immediately
     val eventualStreamOne = for {
@@ -130,7 +103,7 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
                   )
       } yield stream
 
-    val future = for {
+    for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- eventualStreamOne
       _              <- org.apache.pekko.pattern.after(100 millis, system.scheduler)(Future.successful(()))
@@ -138,9 +111,7 @@ class NoEmptySlotsSpec(implicit ec: ExecutionEnv) extends Specification with Fut
       _              <- org.apache.pekko.pattern.after(100 millis, system.scheduler)(Future.successful(()))
       _               = subscriptionsClient.closeHttpConnection(subscriptionId, streamId)
       _              <- streamTwo
-    } yield ()
-
-    future must be_==(()).await(0, timeout = 4 minutes)
+    } yield succeed
 
   }
 }

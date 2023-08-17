@@ -6,37 +6,35 @@ import defaults._
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.StatusCodes
-import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.server.Directives.{complete => _complete, _}
 import com.typesafe.config.ConfigFactory
 import io.circe._
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
-import org.zalando.kanadi.Config
+import org.zalando.kanadi.{AsyncFreeTestKitSpec, Config, PekkoTestKitBase}
 import org.zalando.kanadi.models.{EventTypeName, ExponentialBackoffConfig, FlowId, HttpConfig}
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import org.zalando.kanadi.api.Events.Errors
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
+import org.scalatest.Inside.inside
+import org.scalatest.Inspectors
+import org.scalatest.matchers.must.Matchers
 import pureconfig._
 import pureconfig.generic.auto._
 
-class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
+import scala.language.postfixOps
+
+class EventPublishRetrySpec
+    extends AsyncFreeTestKitSpec(ActorSystem("EventPublishRetrySpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   override lazy implicit val kanadiHttpConfig: HttpConfig =
     ConfigSource.default.at("kanadi.http-config").loadOrThrow[HttpConfig].copy(failedPublishEventRetry = true)
 
   override implicit lazy val kanadiExponentialBackoffConfig: ExponentialBackoffConfig =
     ExponentialBackoffConfig(50 millis, 1.5, 5)
-
-  override def is: SpecStructure =
-    sequential ^
-      s2"""
-    Failed partial events are successfully retried $retryPartialEvents
-    Retry forever and eventually fail $retryForeverAndFail
-  """
 
   def getFreePort(): Int = {
     val socket = new ServerSocket(0)
@@ -48,9 +46,6 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
   val port = getFreePort()
 
   lazy val config = ConfigFactory.load()
-
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
 
   import scala.util._
 
@@ -114,7 +109,7 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
                 state = retryFailed
 
-                complete(
+                _complete(
                   (StatusCodes.MultiStatus,
                    retryFailed.serverFailedEvents.map(event =>
                      Events.BatchItemResponse(
@@ -139,11 +134,11 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
                       None
                     )
                   }
-                  complete((StatusCodes.MultiStatus, failedEvents))
+                  _complete((StatusCodes.MultiStatus, failedEvents))
                 } else {
                   retryWithFailedEventsPromise.complete(Success(rf))
                   retryWithRetriedEventsPromise.complete(Success(events))
-                  complete(StatusCodes.OK)
+                  _complete(StatusCodes.OK)
                 }
             }
           }
@@ -153,7 +148,7 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
 
   implicit val flowId = FlowId(UUID.randomUUID().toString)
 
-  def retryPartialEvents = {
+  "Failed partial events are successfully retried" in { () =>
     val future = for {
       bind <- Http(system)
                 .newServerAt("localhost", port)
@@ -169,10 +164,10 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
     } yield failedEvents.failedEvents.nonEmpty &&
       failedEvents.serverFailedEvents.toSet == retriedEvents.toSet
 
-    future must beTrue.await(3, 1 minute)
+    future.map(result => result mustEqual true)
   }
 
-  def retryForeverAndFail = {
+  "Retry forever and eventually fail" in { () =>
     val future = for {
       bind <- Http(system)
                 .newServerAt("localhost", port)
@@ -186,12 +181,10 @@ class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification wit
            }
     } yield ()
 
-    future must throwA[Errors.EventValidation]
-      .like { case e: Errors.EventValidation =>
-        forall(e.batchItemResponse)(event => event.step mustNotEqual Some(Events.Step.Validating))
-      }
-      .await(3, 1 minute)
-
+    future.failed.map(result =>
+      inside(result) { case e: Errors.EventValidation =>
+        Inspectors.forEvery(e.batchItemResponse)(event => event.step must not equal Some(Events.Step.Validating))
+      })
   }
 
 }

@@ -1,43 +1,32 @@
 package org.zalando.kanadi
 
 import java.util.UUID
-
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models.{EventTypeName, SubscriptionId}
 
 import scala.concurrent.Promise
-import scala.concurrent.duration._
 import scala.util.Success
 
-class AuthorizationSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    Create Event Type          $createEventType
-    Get Event Type             $getEventType
-    Create subscription        $createSubscription
-    Get subscription           $getSubscription
-    """
+class AuthorizationSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("AuthorizationSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
@@ -58,22 +47,22 @@ class AuthorizationSpec(implicit ec: ExecutionEnv) extends Specification with Fu
     List(AuthorizationAttribute("user", "adminClientId"))
   )
 
-  def createEventType = (name: String) => {
+  "Create Event Type" in { () =>
     val future = eventsTypesClient.create(
       EventType(name = eventTypeName,
                 owningApplication = OwningApplication,
                 category = Category.Business,
                 authorization = Some(authorization)))
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def getEventType = (name: String) => {
+  "Get Event Type" in { () =>
     val future = eventsTypesClient.get(eventTypeName).map(_.flatMap(_.authorization))
-    future must beSome(authorization).await(retries = 3, timeout = 10 seconds)
+    future.map(result => result must contain(authorization))
   }
 
-  def createSubscription = (name: String) => {
+  "Create subscription" in { () =>
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         id = None,
@@ -85,22 +74,23 @@ class AuthorizationSpec(implicit ec: ExecutionEnv) extends Specification with Fu
 
     future.onComplete {
       case scala.util.Success(subscription) =>
-        subscription.id.pp
+        pp(subscription.id)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 5 seconds)
+    future.map { result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName))))
+    }
   }
 
-  def getSubscription = (name: String) => {
+  "Get subscription" in { () =>
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       subscription   <- subscriptionsClient.get(subscriptionId)
     } yield subscription.flatMap(_.authorization)
 
-    future must beSome(subscriptionAuthorization).await(retries = 3, timeout = 10 seconds)
+    future.map(result => result must contain(subscriptionAuthorization))
   }
 
 }
