@@ -13,6 +13,8 @@ object Dependencies {
     val circe                    = "0.14.5"
     val specs2                   = "4.20.2"
     val scalaParallelCollections = "0.2.0"
+    val avro                     = "1.11.0"
+    val jackson                  = "2.13.3"
   }
 
   private val pekkoHttp        = "org.apache.pekko"           %% "pekko-http"         % versions.pekkoHttp
@@ -26,6 +28,9 @@ object Dependencies {
   private val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"      % versions.scalaLogging
   private val logbackClassic   = "ch.qos.logback"              % "logback-classic"    % versions.logback
   private val specs2           = "org.specs2"                 %% "specs2-core"        % versions.specs2
+  private val avro             = "org.apache.avro"             % "avro"               % versions.avro
+  private val jacksonAvro  = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-avro" % versions.jackson
+  private val jacksonScala = "com.fasterxml.jackson.module"    %% "jackson-module-scala"    % versions.jackson
 
   private val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % versions.scalaParallelCollections
@@ -47,7 +52,10 @@ object Dependencies {
       pekkoHttpCirce,
       pureConfig,
       scalaLogging,
-      logbackClassic
+      logbackClassic,
+      avro,
+      jacksonAvro,
+      jacksonScala
     ) map (_ % "compile")
     val test = testSeq map (_ % "test")
     compile ++ test

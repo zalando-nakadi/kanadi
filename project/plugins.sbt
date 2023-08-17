@@ -7,3 +7,6 @@ addSbtPlugin("org.scoverage"                     % "sbt-coveralls"      % "1.3.9
 addSbtPlugin("com.github.sbt"                    % "sbt-github-actions" % "0.15.0")
 addSbtPlugin("com.github.sbt"                    % "sbt-release"        % "1.1.0")
 addSbtPlugin("com.timushev.sbt"                  % "sbt-updates"        % "0.6.4")
+addSbtPlugin("com.github.sbt"                    % "sbt-avro"           % "3.4.2")
+
+libraryDependencies += "org.apache.avro" % "avro-compiler" % "1.11.0"

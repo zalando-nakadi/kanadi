@@ -3,10 +3,12 @@ package org.zalando.kanadi.api
 import java.net.URI
 import java.time.OffsetDateTime
 import java.util.concurrent.ConcurrentHashMap
+import org.apache.avro.AvroRuntimeException
 import org.apache.pekko.NotUsed
 import defaults._
 import org.apache.pekko.http.scaladsl.HttpExt
 import org.apache.pekko.http.scaladsl.marshalling.Marshal
+import org.apache.pekko.http.scaladsl.model.MediaType.Compressible
 import org.apache.pekko.http.scaladsl.model.Uri.Query
 import org.apache.pekko.http.scaladsl.model._
 import org.apache.pekko.http.scaladsl.model.headers.{Connection, RawHeader}
@@ -19,12 +21,17 @@ import enumeratum._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.syntax._
 import org.mdedetrich.pekko.stream.support.CirceStreamSupport
+import org.zalando.kanadi.api.Event.AvroEvent
 import org.zalando.kanadi.models._
 import org.zalando.kanadi.models
+import org.zalando.nakadi.generated.avro.ConsumptionBatch
 
+import java.util.UUID
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.reflect.{ClassTag, classTag}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
@@ -204,6 +211,13 @@ object CommitCursorResponse {
 
 object Subscriptions {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](Subscriptions.getClass)
+
+  def apply(baseUri: URI, authTokenProvider: Option[AuthTokenProvider])(implicit
+      kanadiHttpConfig: HttpConfig,
+      http: HttpExt,
+      materializer: Materializer): Subscriptions =
+    new Subscriptions(baseUri, authTokenProvider)(kanadiHttpConfig, http, materializer)
+
   sealed abstract class Errors(override val httpRequest: HttpRequest,
                                override val httpResponse: HttpResponse,
                                override val stringOrProblem: Either[String, Problem])
@@ -224,6 +238,11 @@ object Subscriptions {
                                              jsonParsingException: CirceStreamSupport.JsonParsingException)
       extends Exception {
     override def getMessage: String = jsonParsingException.getMessage
+  }
+
+  final case class EventAvroParsingException(avroParsingException: AvroRuntimeException) // TODO: add info message
+      extends Exception {
+    override def getMessage: String = avroParsingException.getMessage
   }
 
   final case class Cursor(partition: models.Partition,
@@ -521,13 +540,199 @@ final case class CancelledByClient(subscriptionId: SubscriptionId, streamId: Str
     s"Stream cancelled by client SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}"
 }
 
-case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
+object AvroSubscriptions {
+
+  def apply[T](baseUri: URI,
+               authTokenProvider: Option[AuthTokenProvider],
+               eventTypeName: EventTypeName,
+               consumerSchema: String,
+               eventTypes: EventTypesInterface)(implicit
+      kanadiHttpConfig: HttpConfig,
+      http: HttpExt,
+      materializer: Materializer,
+      executionContext: ExecutionContext,
+      tag: ClassTag[T]): AvroSubscriptions[T] = {
+    implicit val exponentialBackoffConfig = ExponentialBackoffConfig(FiniteDuration(100, TimeUnit.MILLISECONDS), 1.5, 2)
+    val result = eventTypes
+      .fetchMatchingSchema(eventTypeName, consumerSchema)
+      .map(etSchemaOpt =>
+        etSchemaOpt.map(etSchema =>
+          new AvroSubscriptions[T](baseUri,
+                                   authTokenProvider,
+                                   AvroSchema(eventTypeName, etSchema.schema.asString.get, etSchema.version.get))))
+
+    Await.result(result, Duration.apply(5, TimeUnit.SECONDS)).getOrElse(throw SchemaNotFoundError(consumerSchema))
+  }
+}
+class AvroSubscriptions[T](baseUri: URI,
+                           authTokenProvider: Option[AuthTokenProvider] = None,
+                           consumerSchema: AvroSchema)(implicit
+    kanadiHttpConfig: HttpConfig,
+    http: HttpExt,
+    materializer: Materializer,
+    tag: ClassTag[T])
+    extends Subscriptions(baseUri, authTokenProvider) {
+
+  import com.fasterxml.jackson.dataformat.avro.{AvroSchema => JacksonSchema}
+
+  private val userSchema = new JacksonSchema(consumerSchema.parsedSchema)
+  private val reader     = AvroUtil.AvroMapper.reader(userSchema)
+
+  def eventsStreamedSourceAvro(subscriptionId: SubscriptionId,
+                               connectionClosedCallback: Subscriptions.ConnectionClosedCallback =
+                                 Subscriptions.ConnectionClosedCallback { _ =>
+                                   ()
+                                 },
+                               streamConfig: Subscriptions.StreamConfig = Subscriptions.StreamConfig())(implicit
+      flowId: FlowId,
+      executionContext: ExecutionContext,
+      eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider)
+      : Future[Subscriptions.NakadiSource[T]] = {
+    import org.apache.pekko.http.scaladsl.model.headers.Accept
+    val uri           = getStreamUri(subscriptionId, streamConfig)
+    val streamHeaders = Accept(MediaType.applicationBinary("avro-binary", Compressible)) +: getBaseHeaders
+
+    def cleanup(streamId: StreamId, cancelledByClient: Boolean) = {
+      // Cleaning up the connection afterwards
+      logger.info(s"SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id} HTTP connection closed, cleaning up")
+      val connectionClosedData = Subscriptions.ConnectionClosedData(
+        OffsetDateTime.now(),
+        subscriptionId,
+        streamId,
+        cancelledByClient
+      )
+      connectionClosedCallback.connectionClosedCallback(connectionClosedData)
+      try killSwitches.remove((subscriptionId, streamId))
+      catch {
+        case NonFatal(e) =>
+          logger.warn(
+            s"SubscriptionId: ${subscriptionId.id}, StreamId: ${streamId.id}, error removing HTTP connection from pool",
+            e)
+      }
+    }
+
+    for {
+      headers <- authTokenProvider match {
+                   case None => Future.successful(streamHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: streamHeaders
+                     }
+                 }
+
+      request = HttpRequest(HttpMethods.GET, uri, headers)
+      _       = logger.debug(request.toString)
+
+      // Create a single connection to avoid the pool
+      connectionFlow = {
+        val host = baseUri_.authority.host.toString()
+        val port = baseUri_.effectivePort
+        if (request.uri.scheme.equalsIgnoreCase("https"))
+          http.outgoingConnectionHttps(host = host, port = port)
+        else http.outgoingConnection(host = host, port = port)
+      }
+
+      response: HttpResponse <- Source
+                                  .single(request)
+                                  .via(connectionFlow)
+                                  .runWith(Sink.head)
+                                  .map(decodeCompressed)
+      _ = logger.debug(response.toString)
+      result <- {
+        if (response.status.isSuccess()) {
+          val streamId = (for {
+            asString <- response.headers.find(_.is(xNakadiStreamIdHeader.toLowerCase))
+          } yield StreamId(asString.value())).getOrElse(
+            throw new ExpectedHeader(xNakadiStreamIdHeader, request, response)
+          )
+
+          val batchParseFlow = Flow.fromFunction[ByteString, Try[ConsumptionBatch]](bs =>
+            Try(ConsumptionBatch.getDecoder.decode(bs.toArray)))
+
+          val graph = response.entity.dataBytes
+            .via(batchParseFlow)
+            .viaMat(KillSwitches.single)(Keep.right)
+            .alsoTo(Sink.onComplete { data =>
+              val cancelledByClient = data match {
+                case util.Failure(CancelledByClient(_, _)) => true
+                case _                                     => false
+              }
+              cleanup(streamId, cancelledByClient)
+              ()
+            })
+            .map { data =>
+              logger.debug(s"SubscriptionId: ${subscriptionId.id.toString}, StreamId: ${streamId.id}")
+              data
+            }
+            .via(parseUserPayloadFlow)
+            .map {
+              case Left(error)   => throw error
+              case Right(result) => result
+            }
+            .withAttributes(ActorAttributes.supervisionStrategy(eventStreamSupervisionDecider
+              .decider(Subscriptions
+                .EventStreamContext(flowId, subscriptionId, streamId, this))))
+
+          Future.successful(Subscriptions.NakadiSource(streamId, graph, request))
+        } else
+          response.status match {
+            case StatusCodes.NotFound =>
+              unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+                stringOrProblem =>
+                  throw Subscriptions.Errors.SubscriptionNotFound(request, response, stringOrProblem)
+              }
+            case StatusCodes.Conflict =>
+              unmarshalStringOrProblem(response.entity.withContentType(ContentTypes.`application/json`)).map {
+                stringOrProblem =>
+                  throw Subscriptions.Errors.NoEmptySlotsOrCursorReset(request, response, stringOrProblem)
+              }
+            case _ =>
+              processNotSuccessful(request, response)
+          }
+      }
+    } yield result
+  }
+
+  private def parseUserPayloadFlow: Flow[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]], NotUsed] =
+    Flow
+      .fromFunction[Try[ConsumptionBatch], Either[Throwable, SubscriptionEvent[T]]] {
+        case Success(data) =>
+          val cursor = data.cursor
+          val clazz  = classTag[T].runtimeClass
+          Right(
+            SubscriptionEvent(
+              cursor = Subscriptions.Cursor(
+                models.Partition(cursor.partition),
+                cursor.offset,
+                EventTypeName(cursor.getEventType),
+                CursorToken(UUID.fromString(cursor.getCursorToken))
+              ),
+              info = Option(data.info).flatMap(_.asJson.asObject),
+              events = Some {
+                data.events.asScala.map { ev =>
+                  val metadata     = Metadata.fromNakadiMetadata(ev.metadata)
+                  val eventData: T = reader.readValue(ev.payload.array(), clazz).asInstanceOf[T]
+                  AvroEvent(eventData, metadata)
+                }.toList
+              }
+            ))
+        case Failure(avroParsingException: AvroRuntimeException) =>
+          Left(Subscriptions.EventAvroParsingException(avroParsingException))
+        case Failure(throwable: Throwable) =>
+          Left(throwable)
+      }
+      .recover { case avroParsingException: AvroRuntimeException =>
+        Left(Subscriptions.EventAvroParsingException(avroParsingException))
+      }
+}
+
+class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvider] = None)(implicit
     kanadiHttpConfig: HttpConfig,
     http: HttpExt,
     materializer: Materializer)
     extends SubscriptionsInterface {
   protected val logger: LoggerTakingImplicit[FlowId] = Logger.takingImplicit[FlowId](classOf[Subscriptions])
-  private val baseUri_                               = Uri(baseUri.toString)
+  protected val baseUri_                             = Uri(baseUri.toString)
 
   /** This endpoint creates a subscription for [[org.zalando.kanadi.models.EventTypeName]] 's. The subscription is
     * needed to be able to consume events from EventTypes in a high level way when Nakadi stores the offsets and manages
@@ -894,7 +1099,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
     } yield result
   }
 
-  private def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
+  protected def combinedJsonParserGraph[T](implicit decoder: Decoder[List[Event[T]]])
       : Graph[FlowShape[ByteString, Either[Throwable, SubscriptionEvent[T]]], NotUsed] =
     GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
@@ -1060,7 +1265,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
     } yield result
   }
 
-  private final val killSwitches =
+  protected final val killSwitches =
     new ConcurrentHashMap[(SubscriptionId, StreamId), UniqueKillSwitch]().asScala
 
   def addStreamToKillSwitch(subscriptionId: SubscriptionId,
@@ -1068,7 +1273,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
                             uniqueKillSwitch: UniqueKillSwitch): Unit =
     killSwitches((subscriptionId, streamId)) = uniqueKillSwitch
 
-  private def getStreamUri(subscriptionId: SubscriptionId, streamConfig: Subscriptions.StreamConfig) =
+  protected def getStreamUri(subscriptionId: SubscriptionId, streamConfig: Subscriptions.StreamConfig) =
     baseUri_
       .withPath(baseUri_.path / "subscriptions" / subscriptionId.id.toString / "events")
       .withQuery(
@@ -1086,7 +1291,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           })
       )
 
-  private def getBaseHeaders(implicit flowId: FlowId): List[HttpHeader] =
+  protected def getBaseHeaders(implicit flowId: FlowId): List[HttpHeader] =
     baseHeaders(flowId) :+ Connection("Keep-Alive")
 
   /** Starts a new stream for reading events from this subscription. The data will be automatically rebalanced between

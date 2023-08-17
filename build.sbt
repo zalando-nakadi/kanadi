@@ -6,6 +6,8 @@ libraryDependencies ++= {
       Seq.empty
   })
 }
+// avro compiler features
+avroStringType := "String"
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Use(

@@ -810,7 +810,7 @@ import scala.concurrent.Future
 object Main extends App with Config {
   val config = ConfigFactory.load()
 
-  val AuthTokenProvider = Option(
+  val authTokenProvider = Option(
     AuthTokenProvider(
       () => Future.successful(AuthToken(sys.props("TOKEN"))))
   )

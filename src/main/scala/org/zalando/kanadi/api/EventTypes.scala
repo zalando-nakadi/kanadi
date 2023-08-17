@@ -139,6 +139,8 @@ object EventTypeSchema {
 
     final case object JsonSchema extends Type("json_schema")
 
+    final case object AvroSchema extends Type("avro_schema")
+
     implicit val eventTypeSchemaTypeEncoder: Encoder[Type] =
       enumeratum.Circe.encoder(Type)
     implicit val eventTypeSchemaTypeDecoder: Decoder[Type] =
@@ -518,6 +520,40 @@ case class EventTypes(baseUri: URI, authTokenProvider: Option[AuthTokenProvider]
           processNotSuccessful(request, response)
       }
     } yield result
+  }
+
+  override def fetchMatchingSchema(name: EventTypeName, schema: String)(implicit
+      flowId: FlowId,
+      executionContext: ExecutionContext): Future[Option[EventTypeSchema]] = {
+    val uri =
+      baseUri_.withPath(baseUri_.path / "event-types" / name.name / "schemas").withQuery(Uri.Query(("fetch", "true")))
+
+    val baseHeaders = List(RawHeader(XFlowID, flowId.value))
+    val etSchema    = EventTypeSchema(None, None, EventTypeSchema.Type.AvroSchema, schema.asJson)
+    for {
+      headers <- authTokenProvider match {
+                   case None => Future.successful(baseHeaders)
+                   case Some(futureProvider) =>
+                     futureProvider.value().map { oAuth2Token =>
+                       toHeader(oAuth2Token) +: baseHeaders
+                     }
+                 }
+      entity   <- Marshal(etSchema).to[RequestEntity]
+      request   = HttpRequest(HttpMethods.POST, uri, headers, entity)
+      _         = logger.debug(request.toString)
+      response <- http.singleRequest(request)
+      result <- {
+        if (response.status == StatusCodes.NotFound) {
+          response.discardEntityBytes()
+          Future.successful(None)
+        } else if (response.status.isSuccess()) {
+          unmarshalAs[EventTypeSchema](response.entity.httpEntity.withContentType(ContentTypes.`application/json`))
+            .map(Some.apply)
+        } else
+          processNotSuccessful(request, response)
+      }
+    } yield result
+
   }
 
   /** Updates the [[EventType]] identified by its name. Behaviour is the same as creation of [[EventType]] (See
