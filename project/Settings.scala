@@ -63,11 +63,13 @@ object Settings {
     "-Ywarn-infer-any",                 // Warn when a type argument is inferred to be `Any`.
     "-Xlint:nullary-override",          // Warn when non-nullary `def f()' overrides nullary `def f'.
     "-Xlint:nullary-unit",              // Warn when nullary methods return Unit.
+    "-opt:l:inline",
     "-opt-inline-from:<sources>"
   )
 
   private val scalacOptionsFor13 = Seq(
     "-Xlint:_",
+    "-opt:l:inline",
     "-opt-inline-from:<sources>"
   )
 
