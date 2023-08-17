@@ -2,18 +2,17 @@ package org.zalando.kanadi
 
 import java.net.URI
 
-import net.ceedubs.ficus.Ficus._
 import org.zalando.kanadi.models.{ExponentialBackoffConfig, HttpConfig}
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
+import pureconfig._
+import pureconfig.generic.auto._
 
 trait Config {
   def config: com.typesafe.config.Config
 
-  lazy val nakadiUri: URI = new URI(config.as[String]("kanadi.nakadi.uri"))
+  lazy val nakadiUri: URI = ConfigSource.default.at("kanadi.nakadi.uri").loadOrThrow[URI]
 
-  implicit lazy val kanadiHttpConfig: HttpConfig = config.as[HttpConfig]("kanadi.http-config")
+  implicit lazy val kanadiHttpConfig: HttpConfig = ConfigSource.default.at("kanadi.http-config").loadOrThrow[HttpConfig]
 
   implicit lazy val kanadiExponentialBackoffConfig: ExponentialBackoffConfig =
-    config.as[ExponentialBackoffConfig]("kanadi.exponential-backoff-config")
+    ConfigSource.default.at("kanadi.exponential-backoff-config").loadOrThrow[ExponentialBackoffConfig]
 }

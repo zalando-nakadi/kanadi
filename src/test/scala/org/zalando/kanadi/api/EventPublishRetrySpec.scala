@@ -18,16 +18,15 @@ import org.zalando.kanadi.models.{EventTypeName, ExponentialBackoffConfig, FlowI
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
-import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import net.ceedubs.ficus.Ficus._
 import org.zalando.kanadi.api.Events.Errors
 import org.mdedetrich.pekko.http.support.CirceHttpSupport._
+import pureconfig._
+import pureconfig.generic.auto._
 
 class EventPublishRetrySpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
 
   override lazy implicit val kanadiHttpConfig: HttpConfig =
-    config.as[HttpConfig]("kanadi.http-config").copy(failedPublishEventRetry = true)
+    ConfigSource.default.at("kanadi.http-config").loadOrThrow[HttpConfig].copy(failedPublishEventRetry = true)
 
   override implicit lazy val kanadiExponentialBackoffConfig: ExponentialBackoffConfig =
     ExponentialBackoffConfig(50 millis, 1.5, 5)
