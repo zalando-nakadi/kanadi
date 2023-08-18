@@ -1,7 +1,7 @@
 version: '2'
 services:
   nakadi:
-    image: adyach/nakadi-docker:3.3.8
+    image: ghcr.io/adyach/nakadi-docker/nakadi:3.5
     ports:
      - "8080:8080"
     depends_on:
@@ -16,7 +16,7 @@ services:
       - NAKADI_PLUGINS_AUTHZ_FACTORY=org.crazycoder.nakadiauthzfileplugin.FileAuthorizationServiceFactory
 
   postgres:
-    image: ghcr.io/adyach/nakadi-docker/postgres:9.5
+    image: ghcr.io/adyach/nakadi-docker/postgres:3.5
     ports:
       - "5432:5432"
     environment:
@@ -25,7 +25,7 @@ services:
       POSTGRES_DB: local_nakadi_db
 
   zookeeper:
-    image: ghcr.io/adyach/nakadi-docker/zookeeper:3.5.8
+    image: ghcr.io/adyach/nakadi-docker/zookeeper:3.6.3
     ports:
       - "2181:2181"
 
