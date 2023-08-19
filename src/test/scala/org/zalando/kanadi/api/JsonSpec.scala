@@ -2,26 +2,17 @@ package org.zalando.kanadi
 package api
 
 import java.util.UUID
-import org.specs2.Specification
-import org.specs2.specification.core.SpecStructure
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
+import org.scalatest.EitherValues
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.models.{EventId, EventTypeName, PublishedBy, SpanCtx}
 
 import java.time.OffsetDateTime
 
-class JsonSpec extends Specification {
-  override def is: SpecStructure = s2"""
-    Parse business events         $businessEvent
-    Parse data events             $dataEvent
-    Parse undefined events        $undefinedEvent
-    SpanCtx decoding example      $decodeSpnCtx
-    SpanCtx encoding example      $encodeSpnCtx
-    SpanCtx fail decoding example $badDecodeSpnCtx
-    Decoding EventType example    $decodeEventTypesAnnotationsCtx
-    Encoding EventType example    $encodeEventTypesAnnotationsCtx
-    """
+class JsonSpec extends AnyFreeSpec with Matchers with EitherValues {
 
   val uuid      = UUID.randomUUID()
   val testEvent = SomeEvent("Bart", "Simpson", uuid)
@@ -71,14 +62,20 @@ class JsonSpec extends Specification {
       |  }
       |}""".stripMargin
 
-  def businessEvent =
-    decode[Event[SomeEvent]](businessEventJson) must beRight(Event.Business(testEvent, md))
+  "Parse business events" in {
+    decode[Event[SomeEvent]](businessEventJson).value mustEqual Event.Business(testEvent, md)
+  }
 
-  def dataEvent =
-    decode[Event[SomeEvent]](dataEventJson) must beRight(Event.DataChange(testEvent, "blah", DataOperation.Create, md))
+  "Parse data events" in {
+    decode[Event[SomeEvent]](dataEventJson).value mustEqual Event.DataChange(testEvent,
+                                                                             "blah",
+                                                                             DataOperation.Create,
+                                                                             md)
+  }
 
-  def undefinedEvent =
-    decode[Event[SomeEvent]](undefinedEventJson) must beRight(Event.Undefined(testEvent))
+  "Parse undefined events" in {
+    decode[Event[SomeEvent]](undefinedEventJson).value mustEqual Event.Undefined(testEvent)
+  }
 
   // Sample data is taken from official Nakadi source at https://github.com/zalando/nakadi/blob/effb2ed7e95bd329ab73ce06b2857aa57510e539/src/test/java/org/zalando/nakadi/validation/JSONSchemaValidationTest.java
 
@@ -109,19 +106,24 @@ class JsonSpec extends Specification {
     annotations = Some(Map("nakadi.io/internal-event-type" -> "true", "criticality" -> "low"))
   )
 
-  def decodeSpnCtx =
-    decode[Metadata](spanCtxJson) must beRight(spanCtxEventMetadata)
+  "SpanCtx decoding example" in {
+    decode[Metadata](spanCtxJson).value mustEqual spanCtxEventMetadata
+  }
 
-  def encodeSpnCtx =
+  "SpanCtx encoding example" in {
     spanCtxEventMetadata.asJson.printWith(Printer.noSpaces.copy(dropNullValues = true)) mustEqual spanCtxJson
+  }
 
-  def badDecodeSpnCtx =
-    decode[Metadata](spanCtxBadJson) must beLeft
+  "SpanCtx fail decoding example" in {
+    decode[Metadata](spanCtxBadJson).isLeft mustEqual true
+  }
 
-  def decodeEventTypesAnnotationsCtx =
-    decode[EventType](eventTypeWithAnnotationsJson) must beRight(eventTypeWithAnnotationsData)
+  "Decoding EventType example" in {
+    decode[EventType](eventTypeWithAnnotationsJson).value mustEqual eventTypeWithAnnotationsData
+  }
 
-  def encodeEventTypesAnnotationsCtx =
+  "Encoding EventType example" in {
     eventTypeWithAnnotationsData.asJson.printWith(
       Printer.spaces2.copy(dropNullValues = true)) mustEqual eventTypeWithAnnotationsJson
+  }
 }

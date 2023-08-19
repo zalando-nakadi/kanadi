@@ -1,23 +1,24 @@
 package org.zalando.kanadi
 
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
-import org.specs2.Specification
-import org.specs2.execute.Skipped
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import io.circe.Json
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api.{Events, Subscriptions}
 import org.zalando.kanadi.models._
 
 import scala.concurrent.Future
 
-class OAuthFailedSpec extends Specification with FutureMatchers with Config {
+// "No way for current Nakadi docker image to detect wrong tokens so tests
+// are ignored
+class OAuthFailedSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("OAuthFailedSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
-
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
 
   val failingauthTokenProvider = Some(
     AuthTokenProvider(() => Future.successful(AuthToken("Failing token")))
@@ -27,12 +28,18 @@ class OAuthFailedSpec extends Specification with FutureMatchers with Config {
     Subscriptions(nakadiUri, failingauthTokenProvider)
   val eventsClient = Events(nakadiUri, failingauthTokenProvider)
 
-  override def is: SpecStructure = s2"""
-    Call to subscriptions list should fail with invalid token   $oAuthCallSubscriptions
-    Call to publishEvents should fail with invalid token        $oAuthPublishEvents
-  """
+  "Call to subscriptions list should fail with invalid token" ignore { implicit testData: TestData =>
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    pp(flowId)
+    subscriptionsClient.list().failed.map(result => result mustBe a[GeneralError])
+  }
 
-  def oAuthCallSubscriptions = Skipped("No way for current Nakadi docker image to detect \"wrong\" tokens")
-
-  def oAuthPublishEvents = Skipped("No way for current Nakadi docker image to detect \"wrong\" tokens")
+  "Call to publishEvents should fail with invalid token" ignore { implicit testData: TestData =>
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    pp(flowId)
+    eventsClient
+      .publish[Json](EventTypeName("Test"), List.empty)
+      .failed
+      .map(result => result mustBe a[GeneralError])
+  }
 }

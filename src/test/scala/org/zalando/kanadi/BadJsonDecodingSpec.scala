@@ -1,22 +1,19 @@
 package org.zalando.kanadi
 
 import java.util.UUID
-
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.stream.Supervision
 import com.typesafe.config.ConfigFactory
 import io.circe.{Decoder, Encoder}
-import org.specs2.Specification
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.FutureMatchers
-import org.specs2.specification.core.SpecStructure
+import org.scalatest.TestData
+import org.scalatest.matchers.must.Matchers
 import org.zalando.kanadi.api.Subscriptions.{ConnectionClosedCallback, EventCallback, EventStreamContext}
 import org.zalando.kanadi.api._
 import org.zalando.kanadi.models._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.language.postfixOps
 import scala.util.Success
 
 final case class SomeBadEvent(firstName: String, lastName: Int, uuid: UUID)
@@ -36,47 +33,29 @@ object SomeBadEvent {
     )(SomeBadEvent.apply)
 }
 
-class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with FutureMatchers with Config {
-  override def is: SpecStructure = sequential ^ s2"""
-    This test handles when a decoder fails to parse some JSON
-    Create Event Type          $createEventType
-    Create Subscription events $createSubscription
-    Start streaming bad events $startStreamBadEvents
-    Publish good events        $publishGoodEvents
-    Receive bad event          $receiveBadEvent
-    Close connection           $closeConnection
-    Delete subscription        $deleteSubscription
-    Delete event type          $deleteEventType
-    """
+class BadJsonDecodingSpec
+    extends AsyncFreeTestKitSpec(ActorSystem("BadJsonDecodingSpec"))
+    with PekkoTestKitBase
+    with Matchers
+    with Config {
 
   val config = ConfigFactory.load()
 
-  implicit val system = ActorSystem()
-  implicit val http   = Http()
-
   val eventTypeName = EventTypeName(s"Kanadi-Test-Event-${UUID.randomUUID().toString}")
 
-  eventTypeName.pp
+  pp(eventTypeName)
 
   val OwningApplication = "KANADI"
 
   val consumerGroup = UUID.randomUUID().toString
 
-  s"Consumer Group: $consumerGroup".pp
+  pp(s"Consumer Group: $consumerGroup")
 
   val subscriptionsClient =
     Subscriptions(nakadiUri, None)
   val eventsClient = Events(nakadiUri, None)
   val eventsTypesClient =
     EventTypes(nakadiUri, None)
-
-  def createEventType = (name: String) => {
-    implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
-    val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
-
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
-  }
 
   val currentSubscriptionId: Promise[SubscriptionId] = Promise()
   val currentStreamId: Promise[StreamId]             = Promise()
@@ -85,9 +64,18 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
   var subscriptionClosed: Boolean                    = false
   val streamComplete: Promise[Boolean]               = Promise()
 
-  def createSubscription = (name: String) => {
+  "Create Event Type" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
+
+    val future = eventsTypesClient.create(EventType(eventTypeName, OwningApplication, Category.Business))
+    future.map(_ => succeed)
+  }
+
+  "Create Subscription events" in { implicit td: TestData =>
+    implicit val flowId: FlowId = Utils.randomFlowId()
+    pp(flowId)
+
     val future = subscriptionsClient.createIfDoesntExist(
       Subscription(
         None,
@@ -98,13 +86,13 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
 
     future.onComplete {
       case scala.util.Success(subscription) =>
-        subscription.id.pp
+        pp(subscription.id)
         currentSubscriptionId.complete(Success(subscription.id.get))
       case _ =>
     }
 
-    future.map(x => (x.owningApplication, x.eventTypes)) must beEqualTo((OwningApplication, Some(List(eventTypeName))))
-      .await(0, timeout = 3 seconds)
+    future.map(result =>
+      (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
   implicit val mySupervisionDecider =
@@ -122,9 +110,9 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       }
     }
 
-  def startStreamBadEvents = (name: String) => {
+  "Start streaming bad events" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     def stream =
       for {
         subscriptionId <- currentSubscriptionId.future
@@ -146,17 +134,15 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
 
     stream.onComplete {
       case scala.util.Success(streamId) =>
-        streamId.pp
+        pp(streamId)
         currentStreamId.complete(Success(streamId))
       case _ =>
     }
 
-    currentStreamId.future.map(_ => ()) must be_==(())
-      .await(0, timeout = 4 minutes)
-
+    currentStreamId.future.map(_ => succeed)
   }
 
-  def publishGoodEvents = (name: String) => {
+  "Publish good events" in { () =>
     val uUIDOne = java.util.UUID.randomUUID()
     val uUIDTwo = java.util.UUID.randomUUID()
 
@@ -171,14 +157,16 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       events.get.map(x => Event.Business(x))
     )
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def receiveBadEvent = (name: String) => receivedBadEvent.future must be_==(()).await(0, timeout = 5 minutes)
+  "Receive bad event" in { () =>
+    receivedBadEvent.future.map(_ => succeed)
+  }
 
-  def closeConnection = (name: String) => {
+  "Close connection" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val closedFuture = for {
       subscriptionId <- currentSubscriptionId.future
       streamId       <- currentStreamId.future
@@ -192,26 +180,26 @@ class BadJsonDecodingSpec(implicit ec: ExecutionEnv) extends Specification with 
       waitForClose <- waitForCloseFuture
     } yield (closed | waitForClose) // either connection has been closed earlier or from our client side
 
-    future must be_==(true).await(0, timeout = 1 minute)
+    future.map(result => result mustEqual true)
   }
 
-  def deleteSubscription = (name: String) => {
+  "Delete subscription" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = for {
       subscriptionId <- currentSubscriptionId.future
       _              <- subscriptionsClient.delete(subscriptionId)
     } yield ()
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
-  def deleteEventType = (name: String) => {
+  "Delete event type" in { implicit td: TestData =>
     implicit val flowId: FlowId = Utils.randomFlowId()
-    flowId.pp(name)
+    pp(flowId)
     val future = eventsTypesClient.delete(eventTypeName)
 
-    future must be_==(()).await(retries = 3, timeout = 10 seconds)
+    future.map(_ => succeed)
   }
 
 }
