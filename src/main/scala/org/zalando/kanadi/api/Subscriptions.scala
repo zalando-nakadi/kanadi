@@ -22,7 +22,6 @@ import org.mdedetrich.pekko.stream.support.CirceStreamSupport
 import org.zalando.kanadi.models._
 import org.zalando.kanadi.models
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -1061,12 +1060,14 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
   }
 
   private final val killSwitches =
-    new ConcurrentHashMap[(SubscriptionId, StreamId), UniqueKillSwitch]().asScala
+    new ConcurrentHashMap[(SubscriptionId, StreamId), UniqueKillSwitch]()
 
   def addStreamToKillSwitch(subscriptionId: SubscriptionId,
                             streamId: StreamId,
-                            uniqueKillSwitch: UniqueKillSwitch): Unit =
-    killSwitches((subscriptionId, streamId)) = uniqueKillSwitch
+                            uniqueKillSwitch: UniqueKillSwitch): Unit = {
+    killSwitches.put((subscriptionId, streamId), uniqueKillSwitch)
+    ()
+  }
 
   private def getStreamUri(subscriptionId: SubscriptionId, streamConfig: Subscriptions.StreamConfig) =
     baseUri_
@@ -1452,7 +1453,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       modifySourceFunction: Option[
         Source[SubscriptionEvent[T], UniqueKillSwitch] => Source[SubscriptionEvent[T], UniqueKillSwitch]])(implicit
       decoder: Decoder[List[Event[T]]],
-      flowId: FlowId = randomFlowId(),
+      flowId: FlowId,
       executionContext: ExecutionContext,
       eventStreamSupervisionDecider: Subscriptions.EventStreamSupervisionDecider
   ): Future[StreamId] =
@@ -1602,7 +1603,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
     *   reference. Note that cancelling the http connection will execute the [[eventsStreamed#connectionClosedCallback]]
     */
   def closeHttpConnection(subscriptionId: SubscriptionId, streamId: StreamId): Boolean =
-    killSwitches.get((subscriptionId, streamId)) match {
+    Option(killSwitches.get((subscriptionId, streamId))) match {
       case Some(killSwitch) =>
         killSwitch.abort(CancelledByClient(subscriptionId, streamId))
         true

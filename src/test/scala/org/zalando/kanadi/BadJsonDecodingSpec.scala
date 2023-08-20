@@ -95,7 +95,7 @@ class BadJsonDecodingSpec
       (result.owningApplication, result.eventTypes) mustEqual ((OwningApplication, Some(List(eventTypeName)))))
   }
 
-  implicit val mySupervisionDecider =
+  implicit val mySupervisionDecider: Subscriptions.EventStreamSupervisionDecider =
     Subscriptions.EventStreamSupervisionDecider { eventStreamContext: EventStreamContext =>
       {
         case parsingException: Subscriptions.EventJsonParsingException =>

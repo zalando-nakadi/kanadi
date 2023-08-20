@@ -33,8 +33,7 @@ object Settings {
     "-language:implicitConversions", // Allow definition of implicit functions called views
     "-unchecked",                    // Enable additional warnings where generated code depends on assumptions.
     "-Xcheckinit",                   // Wrap field accessors to throw an exception on uninitialized access.
-    //  "-Xfatal-warnings", // Fail the compilation if there are any warnings.
-    "-Xfuture",                      // Turn on future language features.
+    "-Xfatal-warnings",              // Fail the compilation if there are any warnings.
     "-Xlint:adapted-args",           // Warn if an argument list is modified to match the receiver.
     "-Xlint:delayedinit-select",     // Selecting member of DelayedInit.
     "-Xlint:doc-detached",           // A Scaladoc comment appears to be detached from its element.
@@ -63,6 +62,7 @@ object Settings {
     "-Ywarn-infer-any",                 // Warn when a type argument is inferred to be `Any`.
     "-Xlint:nullary-override",          // Warn when non-nullary `def f()' overrides nullary `def f'.
     "-Xlint:nullary-unit",              // Warn when nullary methods return Unit.
+    "-Xfuture",                         // Turn on future language features.
     "-opt:l:inline",
     "-opt-inline-from:<sources>"
   )
@@ -70,7 +70,8 @@ object Settings {
   private val scalacOptionsFor13 = Seq(
     "-Xlint:_",
     "-opt:l:inline",
-    "-opt-inline-from:<sources>"
+    "-opt-inline-from:<sources>",
+    "-Xlint:-byname-implicit" // See https://github.com/scala/bug/issues/12072#issuecomment-884514638
   )
 
   val sharedResolvers: Vector[MavenRepository] =
