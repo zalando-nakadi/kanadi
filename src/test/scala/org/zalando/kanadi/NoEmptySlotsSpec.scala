@@ -84,9 +84,8 @@ class NoEmptySlotsSpec
       subscriptionId <- currentSubscriptionId.future
       stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
                   subscriptionId,
-                  EventCallback.successAlways { eventCallbackData =>
-                    eventCallbackData.subscriptionEvent.events
-                      .getOrElse(List.empty)
+                  EventCallback.successAlways { _ =>
+                    ()
                   }
                 )
     } yield stream
@@ -96,9 +95,8 @@ class NoEmptySlotsSpec
         subscriptionId <- currentSubscriptionId.future
         stream <- subscriptionsClient.eventsStreamedManaged[SomeEvent](
                     subscriptionId,
-                    EventCallback.successAlways { eventCallbackData =>
-                      eventCallbackData.subscriptionEvent.events
-                        .getOrElse(List.empty)
+                    EventCallback.successAlways { _ =>
+                      ()
                     }
                   )
       } yield stream

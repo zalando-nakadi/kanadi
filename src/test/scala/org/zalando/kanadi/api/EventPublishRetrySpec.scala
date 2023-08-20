@@ -146,7 +146,7 @@ class EventPublishRetrySpec
       }
     }
 
-  implicit val flowId = FlowId(UUID.randomUUID().toString)
+  implicit val flowId: FlowId = FlowId(UUID.randomUUID().toString)
 
   "Failed partial events are successfully retried" in { () =>
     val future = for {
