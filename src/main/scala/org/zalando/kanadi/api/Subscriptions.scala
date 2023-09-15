@@ -1473,9 +1473,9 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
           modifySourceFunction
         ))
       .recoverWith { case NonFatal(e) =>
-        logger.info(
+        logger.warn(
           s"Reconnecting failed, retry again in ${reconnectDelay.toString()}, SubscriptionId: ${subscriptionId.id.toString}",
-          e.getCause
+          e
         )
         reconnect(subscriptionId,
                   eventCallback,
