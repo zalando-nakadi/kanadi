@@ -1533,7 +1533,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       Subscriptions.ConnectionClosedCallback { connectionClosedData =>
         if (!connectionClosedData.cancelledByClient) {
           logger.info(s"Server disconnected Nakadi stream, reconnecting in ${kanadiHttpConfig.serverDisconnectRetryDelay
-            .toString()}. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
+              .toString()}. Old StreamId: ${connectionClosedData.oldStreamId.id}, SubscriptionId: ${subscriptionId.id.toString}")
 
           reconnect(subscriptionId,
                     eventCallback,
@@ -1555,7 +1555,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       streamId
     }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
       logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
-        .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
+          .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
 
       reconnect(subscriptionId,
                 eventCallback,
@@ -1586,7 +1586,7 @@ case class Subscriptions(baseUri: URI, authTokenProvider: Option[AuthTokenProvid
       nakadiSource
     }.recoverWith { case _: Subscriptions.Errors.NoEmptySlotsOrCursorReset =>
       logger.info(s"No empty slots/cursor reset, reconnecting in ${kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay
-        .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
+          .toString()}, SubscriptionId: ${subscriptionId.id.toString}")
       org.apache.pekko.pattern.after(kanadiHttpConfig.noEmptySlotsCursorResetRetryDelay, http.system.scheduler)(
         eventsStreamedSourceManaged[T](
           subscriptionId,
