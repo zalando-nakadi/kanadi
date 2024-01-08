@@ -178,7 +178,7 @@ class BadJsonDecodingSpec
     val future = for {
       closed       <- closedFuture
       waitForClose <- waitForCloseFuture
-    } yield (closed | waitForClose) // either connection has been closed earlier or from our client side
+    } yield closed | waitForClose // either connection has been closed earlier or from our client side
 
     future.map(result => result mustEqual true)
   }
