@@ -6,8 +6,8 @@ object Dependencies {
     val logback                  = "1.4.11"
     val scalaLogging             = "3.9.5"
     val pureConfig               = "0.17.4"
-    val pekko                    = "1.0.1"
-    val pekkoHttp                = "1.0.0"
+    val pekko                    = "1.0.2"
+    val pekkoHttp                = "1.0.1"
     val pekkoStreamJson          = "1.0.0"
     val enumeratumCirce          = "1.7.3"
     val circe                    = "0.14.5"
@@ -31,7 +31,7 @@ object Dependencies {
   private val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % versions.scalaParallelCollections
 
-  private val testSeq = Seq(scalaTest, pekkoTestKit)
+  private val testSeq = Seq(scalaTest, pekkoTestKit, pekkoStream)
 
   val test213Seq: Seq[ModuleID] = Seq(scalaParallelCollections)
 
@@ -49,8 +49,8 @@ object Dependencies {
       pureConfig,
       scalaLogging,
       logbackClassic
-    ) map (_ % "compile")
-    val test = testSeq map (_ % "test")
+    ) map (_ % Compile)
+    val test = testSeq map (_ % Test)
     compile ++ test
   }
 }
