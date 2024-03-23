@@ -6,8 +6,8 @@ import sbtrelease.ReleaseStateTransformations.*
 import xerial.sbt.Sonatype.autoImport.*
 
 object Settings {
-  val scala212Version: String     = "2.12.18"
-  val scala213Version: String     = "2.13.11"
+  val scala212Version: String     = "2.12.19"
+  val scala213Version: String     = "2.13.13"
   val currentScalaVersion: String = scala212Version
 
   val globalScalaVersion: String           = currentScalaVersion
