@@ -1,7 +1,7 @@
 libraryDependencies ++= {
   Dependencies.kanadi ++ (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, n)) if n == 13 =>
-      Dependencies.test213Seq.map(_ % "test")
+      Dependencies.test213Seq.map(_ % Test)
     case _ =>
       Seq.empty
   })
